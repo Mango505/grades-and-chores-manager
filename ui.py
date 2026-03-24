@@ -11,7 +11,9 @@ def input_grade() -> Grade | None:
             raw_weight = input("Bitte Gewichtung der Note eingeben: ")
             weight = float(raw_weight)
 
-            grade = Grade(value, weight)
+            tag = input("Tag eingeben oder nichts: ").strip()
+
+            grade = Grade(value, weight, tag)
 
             if grade.is_valid():
                 return grade
@@ -23,5 +25,8 @@ def input_grade() -> Grade | None:
         except EOFError:
             return None
 
-def show_result(grade: float) -> None:
-    print(f"Die endgültige Note ist: {grade:.2f}")
+def show_result(result: float, grades: list) -> None:
+    for grade in grades:
+        label = f"[{grade.tag}] " if grade.tag else ""
+        print(f"  {label}{grade.value} (weight: {grade.weight})")
+    print(f"Die endgültige Note ist: {result:.2f}")

@@ -18,7 +18,7 @@ def main():
         return
     
     result = calculate_final_grade(grades)
-    show_result(result)
+    show_result(result, grades)
 
 
 if __name__ == "__main__":

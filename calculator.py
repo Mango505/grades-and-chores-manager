@@ -6,5 +6,5 @@ def calculate_final_grade(grades: list[Grade]) -> float:
     
     total = sum(g.value * g.weight for g in grades)
     weight_sum = sum(g.weight for g in grades)
-    
+
     return total / weight_sum
