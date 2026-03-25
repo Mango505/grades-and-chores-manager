@@ -220,5 +220,8 @@ $RECYCLE.BIN/
 .history
 .ionide
 
-### Qodo ###
+### Qodo AI ###
 .qodo/
+
+### Project files ###
+data/grades.json
