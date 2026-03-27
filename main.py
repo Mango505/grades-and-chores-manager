@@ -1,12 +1,15 @@
-from ui import print_menu, create_subject, add_grade, delete_subject, show_overview
-from storage import save_subjects, load_subjects
+from ui import print_menu, print_title, create_subject, add_grade, delete_subject, show_overview
+from storage import save_subjects, load_subjects, FILE_PATH
 from models import Grade, Subject
 
+VERSION = "v1.1.0"
 
 def main():
+    print_title(f"Notenrechner {VERSION}")
+
     subjects = load_subjects()
     if subjects:
-        print(f"Gespeicherte Noten geladen: {subjects}")
+        print(f"Datei geladen: {FILE_PATH}")
 
     while True:
         choice = print_menu({
@@ -15,7 +18,10 @@ def main():
             "3": "Fach löschen",
             "4": "Übersicht",
             "q": "Beenden"
-        }, "=== Notenrechner ===")
+        },
+        "-" * 8 + " MENÜ " + "-" * 8,
+        start="\n"
+        )
 
         if choice == "q":
             save_subjects(subjects)
