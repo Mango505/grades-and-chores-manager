@@ -1,18 +1,33 @@
 from models import Grade, Subject
 
 def create_subject(subjects: list[Subject]) -> list[Subject]:
+    first = True
+    print_subtitle("Fach erstellen")
+    
     while True:
+        if not first:
+            print()
+        first = False
+
         raw = input("Name für neues Fach eingeben: ").strip()
         
         if raw not in [s.name for s in subjects]:
             subjects.append(Subject(raw))
+            print(f"'{raw}' wurde als neues Fach hinzugefügt.")
             return subjects
         print("Fach existiert bereits. Bitte einen anderen Namen angeben, der noch nicht existiert.")
 
 
 def add_grade(subjects: list[Subject]) -> list[Subject]:
+    first = True
+    print_subtitle("Note hinzufügen")
+    
     while True:
         try:
+            if not first:
+                print()
+            first = False
+
             choice = print_subjects(
                 subjects,
                 ", zu dem die Note hinzugefügt werden soll"
@@ -32,9 +47,9 @@ def add_grade(subjects: list[Subject]) -> list[Subject]:
 
             if grade.is_valid():
                 choice.add_grade(grade)    # add the Grade to the desired subject
-                print(f"Neue Note zum Fach '{choice}' hinzugefügt.")
+                print(f"Neue Note zum Fach '{choice.name}' hinzugefügt.")
                 return subjects            
-            print("Note muss zwischen 1 und 6 liegen.")
+            print("Ungültige Eingabe. Note muss zwischen 1 und 6 liegen.")
 
         except ValueError:
             print("Ungültige Eingabe. Bitte eine Zahl eingeben.")
@@ -44,40 +59,53 @@ def add_grade(subjects: list[Subject]) -> list[Subject]:
 
 
 def delete_subject(subjects: list[Subject]) -> list[Subject]:
+    first = True
+    print_subtitle("Fach löschen")
+
     while True:
         try:
+            if not first:
+                print()
+            first = False
+
             choice = print_subjects(
                 subjects,
-                ", welches entfernt werden soll"
+                ", welches entfernt werden soll",
             )
             choice = int(choice)
             choice = subjects[choice]
 
-            subjects.remove(choice)
-            return subjects
+            confirm = input(f"Bist du sicher dass du '{choice.name}' entfernen möchtest? 'Ja' zum Bestätigen: ").strip().lower()
+            if confirm in ["j", "ja"]:
+                subjects.remove(choice)
+                print("Fach entfernt.")
+                return subjects
+            else:
+                print("Vorgang abgebrochen.")
+                return subjects
             
         except ValueError:
             print("Ungültige Eingabe. Bitte eine Zahl eingeben.")
 
 
 def show_overview(subjects: list[Subject]) -> list[Subject]:
-    for subject in subjects:
-        print(
-            "Fach:", subject.name,
-            "|",
-            "Durchschnitt:", subject.average(),
-            "\n",
-            end=""
-        )
+    print_subtitle("Notenübersicht")
 
-        if not subject.grades:
-            print("Dieses Fach enthält keine Noten.")
-            continue
+    for i, subject in enumerate(subjects):
+        print(f"Fach: {subject.name} | Durchschnitt: {subject.average():.2f}")
+
+        if subject.grades:
+            print("└──" + "\tEinträge (Note | Gewichtung | Nachricht):")
+        else:
+            print("└──" + "\tDieses Fach enthält keine Noten.")
 
         for grade in subject.grades:
             print(
-                grade.value, grade.weight, grade.tag, sep=" | "
+                f"\t{grade.value:.2f} | {grade.weight:.2f} | {grade.tag}"
             )
+
+        if i < len(subjects) - 1:   # not the last subject
+            print()
 
 
 def print_subjects(subjects: list[Subject], additional: str = "") -> str:
@@ -88,7 +116,7 @@ def print_subjects(subjects: list[Subject], additional: str = "") -> str:
     return choice
 
 
-def print_title(title): 
+def print_title(title: str): 
     """Prints a title, e.g. print_title("title")"""
     width = len(title) + 4
     border = "+" + "-" * width + "+"
@@ -98,22 +126,31 @@ def print_title(title):
     print(border)
 
 
-def print_subtitle(title):
+def print_subtitle(title: str):
     """Prints a subtitle, e.g. print_subtitle("subtitle")"""
-    print("\n" + "=" * 30)
-    print(title.upper())
+    print("\n" + title.upper())
     print("=" * 30)
 
 
-def print_menu(options, title="Choose mode:", prompt="> "):
+def print_menu(options: dict, title="Choose mode:", prompt="> ", start: str | None = None) -> str:
+    first = True
+
     while True:
-        print(f"\n{title}")
+        if not first and not start:
+            print()
+        first = False
+
+        if start:
+            print(start + title)
+        else:
+            print(title)
+        
         for key, label in options.items():
             print(f"[{key}] {label}")
 
-        choice = input(prompt).strip()
+        choice = input(prompt).strip().lower()
 
         if choice in options:
             return choice
 
-        print(f"Invalid input. Please choose one of: {', '.join(options.keys())}.")
+        print(f"Ungültige Eingabe. Bitte eine dieser Optionen eingeben: {', '.join(options.keys())}.")

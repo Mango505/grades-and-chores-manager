@@ -25,5 +25,5 @@ def load_subjects() -> list[Subject]:
             return [ Subject.from_dict(s) for s in data.get("subjects", []) ]
 
     except json.JSONDecodeError:
-        print(f"Warning: {FILE_PATH} is corrupt. Starting with empty list.")
+        print(f"Warnung: {FILE_PATH} ist korrupt oder fehlt. Es wird eine leere Liste geladen.")
         return []
