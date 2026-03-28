@@ -1,11 +1,12 @@
 class Grade:
-    def __init__(self, value: int, weight: float = 1.0, tags: list[str] = []):
+    def __init__(self, value: int, weight: float = 1.0, tags: list[str] | None = None):
+        self.tags = tags if tags is not None else []
         self.value = value
         self.weight = weight
         self.tags = tags
 
     def is_valid(self) -> bool:
-        return 1 <= self.value <= 6    
+        return 1 <= self.value <= 6 and self.weight > 0
 
     def to_dict(self) -> dict:
         """Serialize Grade to a JSON-compatible dict."""

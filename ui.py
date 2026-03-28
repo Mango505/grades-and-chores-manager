@@ -5,11 +5,11 @@ def create_subject(subjects: list[Subject]) -> list[Subject]:
     print_subtitle("Fach erstellen")
     
     while True:
-        if not first:
-            print()
+        if not first: print()
         first = False
 
         raw = input("Name für neues Fach eingeben: ").strip()
+        if not raw: print("Name darf nicht leer sein."); continue
         
         if raw not in [s.name for s in subjects]:
             subjects.append(Subject(raw))
@@ -27,8 +27,7 @@ def add_grade(subjects: list[Subject]) -> list[Subject]:
     
     while True:
         try:
-            if not first:
-                print()
+            if not first: print()
             first = False
 
             # Choose subject
@@ -43,7 +42,7 @@ def add_grade(subjects: list[Subject]) -> list[Subject]:
             choice = subjects[choice]
             
             # Enter grade value
-            value = input("Note eingeben: ").strip().lower()                     
+            value = input("Note eingeben: ").strip().lower()
             value = int(value)
 
             # Enter grade weight
@@ -54,7 +53,8 @@ def add_grade(subjects: list[Subject]) -> list[Subject]:
                 weight = 1.0
 
             # Enter tags
-            tags = input("Tags für die Note eingeben oder leerlassen (Komma als Trennzeichen): ").split(",")
+            raw_tags = input("Tags für die Note eingeben oder leerlassen (Komma als Trennzeichen): ").strip()
+            tags = [t.strip() for t in raw_tags.split(",")] if raw_tags else []     # empty list if no input
             for i, t in enumerate(tags):
                 tags[i] = t.strip()
 
@@ -64,7 +64,7 @@ def add_grade(subjects: list[Subject]) -> list[Subject]:
                 choice.add_grade(grade)    # add the Grade to the desired subject
                 print(f"Neue Note zum Fach '{choice.name}' hinzugefügt.")
                 return subjects            
-            print("Ungültige Eingabe. Note muss zwischen 1 und 6 liegen.")
+            print("Ungültige Eingabe. Note muss zwischen 1 und 6 liegen und Gewichtung muss höher als 0 sein.")
 
         except ValueError:
             print("Ungültige Eingabe. Bitte eine Zahl eingeben.")
@@ -82,8 +82,7 @@ def delete_subject(subjects: list[Subject]) -> list[Subject]:
 
     while True:
         try:
-            if not first:
-                print()
+            if not first: print()
             first = False
 
             choice = print_subjects(
@@ -123,12 +122,10 @@ def show_overview(subjects: list[Subject]) -> list[Subject]:
             print("└──" + "\tDieses Fach enthält keine Noten.")
 
         for grade in subject.grades:
-            print(
-                f"\t{grade.value} | {grade.weight:.1f} | {", ".join(grade.tags)}"
-            )
+            tags_str = ", ".join(grade.tags)
+            print(f"\t{grade.value} | {grade.weight:.1f} | {tags_str}")
 
-        if i < len(subjects) - 1:   # not the last subject
-            print()
+        if i < len(subjects) - 1: print()   # not the last subject
 
 
 def print_subjects(subjects: list[Subject], additional: str = "") -> str:
@@ -160,14 +157,11 @@ def print_menu(options: dict, title="Choose mode:", prompt="> ", start: str | No
     first = True
 
     while True:
-        if not first and not start:
-            print()
+        if not first and not start: print()
         first = False
 
-        if start:
-            print(start + title)
-        else:
-            print(title)
+        if start: print(start + title)
+        else: print(title)
         
         for key, label in options.items():
             print(f"[{key}] {label}")
