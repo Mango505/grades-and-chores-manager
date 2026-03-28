@@ -1,4 +1,4 @@
-from ui import print_menu, print_title, create_subject, add_grade, delete_subject, show_overview
+from ui import print_menu, print_title, create_subject, add_grade, delete_subject, show_overview, filter_by_tag
 from storage import save_subjects, load_subjects, FILE_PATH
 from models import Grade, Subject
 
@@ -17,6 +17,7 @@ def main():
             "2": "Note hinzufügen",
             "3": "Fach löschen",
             "4": "Übersicht",
+            "5": "Nach Tag filtern",
             "q": "Beenden"
         },
         "-" * 8 + " MENÜ " + "-" * 8,
@@ -34,6 +35,8 @@ def main():
             delete_subject(subjects)
         elif choice == "4":
             show_overview(subjects)
+        elif choice == "5":
+            filter_by_tag(subjects)
 
 
 if __name__ == "__main__":

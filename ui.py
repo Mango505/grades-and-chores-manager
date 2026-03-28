@@ -128,6 +128,39 @@ def show_overview(subjects: list[Subject]) -> list[Subject]:
         if i < len(subjects) - 1: print()   # not the last subject
 
 
+def filter_by_tag(subjects: list[Subject]) -> list[Subject]:
+    print_subtitle("Nach Tag filtern")
+    if not subjects:
+        print("Keine Fächer vorhanden.")
+        return subjects
+
+    tag = input("Nach welchem Tag möchtest du filtern? ").strip()
+
+    total_value = 0.0
+    total_weight = 0.0
+    found = False
+
+    for subject in subjects:
+        filtered = [g for g in subject.grades if tag in g.tags]
+        if not filtered:
+            continue
+
+        found = True
+        print(f"\nFach: {subject.name} | Tag-Durchschnitt: {subject.average_by_tag(tag):.2f}")
+        print("└──\tEinträge (Note | Gewichtung | Tags):")
+        for grade in filtered:
+            print(f"\t{grade.value} | {grade.weight:.1f} | {', '.join(grade.tags)}")
+            total_value += grade.value * grade.weight
+            total_weight += grade.weight
+
+    if not found:
+        print(f"Keine Einträge mit Tag '{tag}' gefunden.")
+        return subjects
+
+    print(f"\nGesamtdurchschnitt für '{tag}': {total_value / total_weight:.2f}")
+    return subjects
+
+
 def print_subjects(subjects: list[Subject], additional: str = "") -> str:
     """Shows the user a list with indexes of existing subjects to select from"""
     
