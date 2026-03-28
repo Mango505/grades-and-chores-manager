@@ -19,8 +19,11 @@ def create_subject(subjects: list[Subject]) -> list[Subject]:
 
 
 def add_grade(subjects: list[Subject]) -> list[Subject]:
-    first = True
     print_subtitle("Note hinzufügen")
+    if not subjects:
+        print("Keine Fächer vorhanden.")
+        return subjects
+    first = True
     
     while True:
         try:
@@ -28,22 +31,34 @@ def add_grade(subjects: list[Subject]) -> list[Subject]:
                 print()
             first = False
 
+            # Choose subject
             choice = print_subjects(
                 subjects,
                 ", zu dem die Note hinzugefügt werden soll"
             ).strip().lower()
+            if choice == "z":
+                print("Vorgang abgebrochen.")
+                return subjects
             choice = int(choice)
             choice = subjects[choice]
             
+            # Enter grade value
             value = input("Note eingeben: ").strip().lower()                     
-            value = float(value)
+            value = int(value)
 
-            weight = input("Gewichtung der Note eingeben: ").strip().lower()
-            weight = float(weight)
+            # Enter grade weight
+            weight = input("Gewichtung der Note eingeben (Leerlassen zählt einfach): ").strip().lower()
+            if weight:
+                weight = float(weight)
+            else:
+                weight = 1.0
 
-            tag = input("Tag für die Note eingeben oder leerlassen: ").strip()
+            # Enter tags
+            tags = input("Tags für die Note eingeben oder leerlassen (Komma als Trennzeichen): ").split(",")
+            for i, t in enumerate(tags):
+                tags[i] = t.strip()
 
-            grade = Grade(value, weight, tag)   # create Grade object from user inputs
+            grade = Grade(value, weight, tags)   # create Grade object from user inputs
 
             if grade.is_valid():
                 choice.add_grade(grade)    # add the Grade to the desired subject
@@ -59,8 +74,11 @@ def add_grade(subjects: list[Subject]) -> list[Subject]:
 
 
 def delete_subject(subjects: list[Subject]) -> list[Subject]:
-    first = True
     print_subtitle("Fach löschen")
+    if not subjects:
+        print("Keine Fächer vorhanden.")
+        return subjects
+    first = True
 
     while True:
         try:
@@ -71,37 +89,42 @@ def delete_subject(subjects: list[Subject]) -> list[Subject]:
             choice = print_subjects(
                 subjects,
                 ", welches entfernt werden soll",
-            )
+            ).strip().lower()
+            if choice == "z":
+                print("Vorgang abgebrochen.")
+                return subjects
             choice = int(choice)
             choice = subjects[choice]
 
-            confirm = input(f"Bist du sicher dass du '{choice.name}' entfernen möchtest? 'Ja' zum Bestätigen: ").strip().lower()
-            if confirm in ["j", "ja"]:
+            confirm = input(f"Bist du sicher dass du '{choice.name}' entfernen möchtest? 'J' zum Bestätigen: ").strip().lower()
+            if confirm == "j":
                 subjects.remove(choice)
                 print("Fach entfernt.")
                 return subjects
-            else:
-                print("Vorgang abgebrochen.")
-                return subjects
-            
+
+            print("Vorgang abgebrochen.")
+
         except ValueError:
             print("Ungültige Eingabe. Bitte eine Zahl eingeben.")
 
 
 def show_overview(subjects: list[Subject]) -> list[Subject]:
     print_subtitle("Notenübersicht")
+    if not subjects:
+        print("Keine Fächer vorhanden.")
+        return subjects
 
     for i, subject in enumerate(subjects):
         print(f"Fach: {subject.name} | Durchschnitt: {subject.average():.2f}")
 
         if subject.grades:
-            print("└──" + "\tEinträge (Note | Gewichtung | Nachricht):")
+            print("└──" + "\tEinträge (Note | Gewichtung | Tags):")
         else:
             print("└──" + "\tDieses Fach enthält keine Noten.")
 
         for grade in subject.grades:
             print(
-                f"\t{grade.value:.2f} | {grade.weight:.2f} | {grade.tag}"
+                f"\t{grade.value} | {grade.weight:.1f} | {", ".join(grade.tags)}"
             )
 
         if i < len(subjects) - 1:   # not the last subject
@@ -112,6 +135,7 @@ def print_subjects(subjects: list[Subject], additional: str = "") -> str:
     """Shows the user a list with indexes of existing subjects to select from"""
     
     options = {str(i): s.name for i, s in enumerate(subjects)}  # convert list to dict: {index: name}
+    options["z"] = "Zurück"
     choice = print_menu(options, "Fach auswählen" + additional + ":")
     return choice
 

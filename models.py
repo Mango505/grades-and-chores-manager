@@ -1,20 +1,20 @@
 class Grade:
-    def __init__(self, value: float, weight: float = 1.0, tag: str = ""):
+    def __init__(self, value: int, weight: float = 1.0, tags: list[str] = []):
         self.value = value
         self.weight = weight
-        self.tag = tag
+        self.tags = tags
 
     def is_valid(self) -> bool:
-        return 1.0 <= self.value <= 6.0    
+        return 1 <= self.value <= 6    
 
     def to_dict(self) -> dict:
         """Serialize Grade to a JSON-compatible dict."""
-        return {"value": self.value, "weight": self.weight, "tag": self.tag}
+        return {"value": self.value, "weight": self.weight, "tags": self.tags}
 
     @classmethod
     def from_dict(cls, data: dict) -> "Grade":
         """Deserialize a Grade from a dict."""
-        return cls(data["value"], data["weight"], data["tag"])
+        return cls(data["value"], data["weight"], data["tags"])
 
 
 class Subject:
@@ -35,7 +35,7 @@ class Subject:
         return sum(g.value * g.weight for g in self.grades) / sum(g.weight for g in self.grades)
 
     def to_dict(self) -> dict:
-        return {"name": self.name, "grades": [g.to_dict() for g in self.grades]}
+        return{"name": self.name, "grades": [g.to_dict() for g in self.grades]}
 
     @classmethod
     def from_dict(cls, data: dict) -> "Subject":
