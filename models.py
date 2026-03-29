@@ -35,9 +35,9 @@ class Subject:
             return 0.0
         return sum(g.value * g.weight for g in self.grades) / sum(g.weight for g in self.grades)
     
-    def average_by_tag(self, tag: str) -> float:
+    def average_by_tag(self, tags: list[str]) -> float:
         """Weighted average of grades by filter."""
-        filtered = [g for g in self.grades if tag in g.tags]
+        filtered = [g for g in self.grades if tags in g.tags]
         if not filtered:
             return 0.0
         return sum(g.value * g.weight for g in filtered) / sum(g.weight for g in filtered)

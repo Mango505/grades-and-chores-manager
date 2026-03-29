@@ -17,7 +17,7 @@ def main():
             "2": "Note hinzufügen",
             "3": "Fach löschen",
             "4": "Übersicht",
-            "5": "Nach Tag filtern",
+            "5": "Nach Tags filtern",
             "q": "Beenden"
         },
         "-" * 8 + " MENÜ " + "-" * 8,

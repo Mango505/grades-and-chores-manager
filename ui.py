@@ -24,7 +24,7 @@ def add_grade(subjects: list[Subject]) -> list[Subject]:
         print("Keine Fächer vorhanden.")
         return subjects
     first = True
-    
+
     while True:
         try:
             if not first: print()
@@ -40,7 +40,7 @@ def add_grade(subjects: list[Subject]) -> list[Subject]:
                 return subjects
             choice = int(choice)
             choice = subjects[choice]
-            
+
             # Enter grade value
             value = input("Note eingeben: ").strip().lower()
             value = int(value)
@@ -129,35 +129,37 @@ def show_overview(subjects: list[Subject]) -> list[Subject]:
 
 
 def filter_by_tag(subjects: list[Subject]) -> list[Subject]:
-    print_subtitle("Nach Tag filtern")
+    print_subtitle("Nach Tags filtern")
     if not subjects:
         print("Keine Fächer vorhanden.")
         return subjects
 
-    tag = input("Nach welchem Tag möchtest du filtern? ").strip()
+    raw_tags = input("Nach welchen Tags möchtest du filtern (Komma als Trennzeichen)? ").strip()
+    tags = [t.strip() for t in raw_tags.split(",")] if raw_tags else []
 
     total_value = 0.0
     total_weight = 0.0
     found = False
 
     for subject in subjects:
-        filtered = [g for g in subject.grades if tag in g.tags]
+        filtered = [g for g in subject.grades if any(t in g.tags for t in tags)]
         if not filtered:
             continue
 
         found = True
-        print(f"\nFach: {subject.name} | Tag-Durchschnitt: {subject.average_by_tag(tag):.2f}")
+        print(f"\nFach: {subject.name} | Tag-Durchschnitt: {subject.average_by_tag(tags):.2f}")
         print("└──\tEinträge (Note | Gewichtung | Tags):")
         for grade in filtered:
-            print(f"\t{grade.value} | {grade.weight:.1f} | {', '.join(grade.tags)}")
+            tags_str = ', '.join(grade.tags)
+            print(f"\t{grade.value} | {grade.weight:.1f} | {tags_str}")
             total_value += grade.value * grade.weight
             total_weight += grade.weight
 
     if not found:
-        print(f"Keine Einträge mit Tag '{tag}' gefunden.")
+        print(f"Keine Einträge mit Tag '{tags}' gefunden.")
         return subjects
 
-    print(f"\nGesamtdurchschnitt für '{tag}': {total_value / total_weight:.2f}")
+    print(f"\nGesamtdurchschnitt für '{raw_tags}': {total_value / total_weight:.2f}")
     return subjects
 
 
