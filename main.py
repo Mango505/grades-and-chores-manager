@@ -2,7 +2,7 @@ from ui import print_menu, print_title, create_subject, add_grade, delete_subjec
 from storage import save_subjects, load_subjects, FILE_PATH
 from models import Grade, Subject
 
-VERSION = "v1.1.4"
+VERSION = "v1.2.0"
 
 def main():
     print_title(f"Notenrechner {VERSION}")
