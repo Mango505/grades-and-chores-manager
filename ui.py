@@ -133,6 +133,15 @@ def filter_by_tag(subjects: list[Subject]) -> list[Subject]:
     if not subjects:
         print("Keine Fächer vorhanden.")
         return subjects
+    
+    choice = print_menu({
+        "1": "Es müssen alle Tags übereinstimmen",
+        "2": "Es muss mindestens ein Tag übereinstimmen"
+    }, "Wähle einen Filtermodus aus:")
+    if choice == "1":
+        mode = "and"
+    if choice == "2":
+        mode = "or"
 
     raw_tags = input("Nach welchen Tags möchtest du filtern (Komma als Trennzeichen)? ").strip()
     tags = [t.strip() for t in raw_tags.split(",")] if raw_tags else []
@@ -142,12 +151,15 @@ def filter_by_tag(subjects: list[Subject]) -> list[Subject]:
     found = False
 
     for subject in subjects:
-        filtered = [g for g in subject.grades if any(t in g.tags for t in tags)]
+        if mode == "and":
+            filtered = [g for g in subject.grades if all(t in g.tags for t in tags)]
+        if mode == "or":
+            filtered = [g for g in subject.grades if any(t in g.tags for t in tags)]
         if not filtered:
             continue
 
         found = True
-        print(f"\nFach: {subject.name} | Tag-Durchschnitt: {subject.average_by_tag(tags):.2f}")
+        print(f"\nFach: {subject.name} | Tag-Durchschnitt: {subject.average_by_tag(tags, f"{mode}"):.2f}")
         print("└──\tEinträge (Note | Gewichtung | Tags):")
         for grade in filtered:
             tags_str = ', '.join(grade.tags)
