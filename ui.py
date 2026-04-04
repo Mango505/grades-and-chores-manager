@@ -43,7 +43,7 @@ def add_grade(subjects: list[Subject]) -> list[Subject]:
 
             # Enter grade value
             value = input("Note eingeben: ").strip().lower()
-            value = int(value)
+            value = float(value)
 
             # Enter grade weight
             weight = input("Gewichtung der Note eingeben (Leerlassen zählt einfach): ").strip().lower()
