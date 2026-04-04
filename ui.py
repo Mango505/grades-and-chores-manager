@@ -112,6 +112,9 @@ def show_overview(subjects: list[Subject]) -> list[Subject]:
     if not subjects:
         print("Keine Fächer vorhanden.")
         return subjects
+    
+    total_value = 0.0
+    total_weight = 0.0
 
     for i, subject in enumerate(subjects):
         print(f"Fach: {subject.name} | Durchschnitt: {subject.average():.2f}")
@@ -124,8 +127,13 @@ def show_overview(subjects: list[Subject]) -> list[Subject]:
         for grade in subject.grades:
             tags_str = ", ".join(grade.tags)
             print(f"\t{grade.value} | {grade.weight:.1f} | {tags_str}")
+            total_value += grade.value * grade.weight
+            total_weight += grade.weight
 
         if i < len(subjects) - 1: print()   # not the last subject
+
+    overall = f"{total_value / total_weight:.2f}" if total_weight > 0 else "N/A"
+    print(f"\nGesamtdurchschnitt: {overall}")
 
 
 def filter_by_tag(subjects: list[Subject]) -> list[Subject]:
