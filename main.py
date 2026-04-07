@@ -1,3 +1,4 @@
+import argparse
 from ui import print_menu, print_title, create_subject, add_grade, delete_subject, show_overview, filter_by_tag
 from storage import save_subjects, load_subjects, FILE_PATH
 from models import Grade, Subject
@@ -5,11 +6,22 @@ from models import Grade, Subject
 VERSION = "v1.2.2"
 
 def main():
+    parser = argparse.ArgumentParser(
+        description="Notenrechner – Verwalte deine Noten im bayerischen Notensystem (1–6)."
+    )
+    parser.add_argument(
+        "-f", "--file",
+        default=FILE_PATH,
+        metavar="FILE",
+        help="Pfad zur JSON-Datei für das Laden und Speichern von Noten (Standard: %(default)s)"
+    )
+    args = parser.parse_args()
+
     print_title(f"Notenrechner {VERSION}")
 
-    subjects = load_subjects()
+    subjects = load_subjects(args.file)
     if subjects:
-        print(f"Datei geladen: {FILE_PATH}")
+        print(f"Datei geladen: {args.file}")
 
     while True:
         choice = print_menu({
@@ -25,7 +37,7 @@ def main():
         )
 
         if choice == "q":
-            save_subjects(subjects)
+            save_subjects(subjects, args.file)
             break
         elif choice == "1":
             create_subject(subjects)
