@@ -1,7 +1,7 @@
 import argparse
 from ui import print_menu, print_title, create_subject, add_grade, delete_subject, show_overview, filter_by_tag
-from storage import save_subjects, load_subjects, load_config, FILE_PATH
-from models import Grade, Subject, RewardConfig
+from storage import save_subjects, load_subjects, save_config, load_config, DATA_PATH
+from models import RewardConfig
 
 VERSION = "v1.2.4"
 
@@ -11,7 +11,7 @@ def main():
     )
     parser.add_argument(
         "-f", "--file",
-        default=FILE_PATH,
+        default=DATA_PATH,
         metavar="FILE",
         help="Pfad zur JSON-Datei für das Laden und Speichern von Noten (Standard: %(default)s)"
     )
@@ -23,8 +23,7 @@ def main():
     if subjects:
         print(f"Datei geladen: {args.file}")
 
-    config = load_config()
-    reward_config = RewardConfig(points_map=config[0], money_per_point=config[1])
+    reward_config = load_config()
 
     while True:
         choice = print_menu({
@@ -41,6 +40,7 @@ def main():
 
         if choice == "q":
             save_subjects(subjects, args.file)
+            save_config(reward_config)
             break
         elif choice == "1":
             create_subject(subjects)

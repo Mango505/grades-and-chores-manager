@@ -1,37 +1,61 @@
 import json
 import os
-from models import Grade, Subject, DEFAULT_POINTS_MAP, DEFAULT_MONEY_PER_POINT
+from models import Subject, RewardConfig, DEFAULT_POINTS_MAP, DEFAULT_MONEY_PER_POINT
 
-FILE_PATH = "data/grades.json"
+DATA_PATH = "data/grades.json"
+CONFIG_PATH = "data/config.json"
 
-def save_subjects(subjects: list[Subject], path: str = FILE_PATH) -> None:
-    """Save Subject objects to JSON file."""
-
+def save_subjects(subjects: list[Subject], path: str = DATA_PATH) -> None:
+    """
+        Save Subject objects to JSON file.
+    """
     os.makedirs(os.path.dirname(path), exist_ok=True)  # creates path if missing
 
     with open(path, "w") as f:
         json.dump({"subjects": [s.to_dict() for s in subjects]}, f, indent=2)
 
 
-def load_subjects(path: str = FILE_PATH) -> list[Subject]:
-    """Load Subjects from JSON file. Returns empty list if file is missing or corrupt."""
-
+def load_subjects(path: str = DATA_PATH) -> list[Subject]:
+    """
+        Load Subjects from JSON file. Returns empty list if file is missing or corrupt.
+    """
     if not os.path.exists(path):
         return []
 
     try:
         with open(path, "r") as f:
             data = json.load(f)
-            return [ Subject.from_dict(s) for s in data.get("subjects", []) ]
+            return [
+                Subject.from_dict(s) for s in data.get("subjects", [])
+            ]
 
     except json.JSONDecodeError:
-        print(f"Warnung: {FILE_PATH} ist korrupt oder fehlt. Es wird eine leere Liste geladen.")
+        print(f"Warnung: {DATA_PATH} ist korrupt oder fehlt. Es wird eine leere Liste geladen.")
         return []
 
 
-def load_config() -> tuple[dict[int, int], float]:
-    """Load reward configuration. Returns default values if config file is missing or corrupt."""
-    points_map = DEFAULT_POINTS_MAP.copy()
-    money_per_point = DEFAULT_MONEY_PER_POINT
+def save_config(config: RewardConfig, path: str = CONFIG_PATH) -> None:
+    """
+        Save reward configuration to JSON file.
+    """
+    os.makedirs(os.path.dirname(path), exist_ok=True)
 
-    return points_map, money_per_point
+    with open(path, "w") as f:
+        json.dump(config.to_dict(), f, indent=2)
+
+
+def load_config(path: str = CONFIG_PATH) -> RewardConfig:
+    """
+        Load reward configuration from JSON file. Returns default RewardConfig if config file is missing or corrupt.
+    """
+    if not os.path.exists(path):
+        return RewardConfig()   # returns default config if file is missing
+
+    try:
+        with open(path, "r") as f:
+            data = json.load(f)
+            return RewardConfig.from_dict(data)
+
+    except json.JSONDecodeError:
+        print(f"Warnung: {CONFIG_PATH} ist korrupt oder fehlt. Es wird die Standardkonfiguration geladen.")
+        return RewardConfig()   # returns default config if file is corrupt
