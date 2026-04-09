@@ -7,7 +7,7 @@ VERSION = "v1.2.3"
 
 def main():
     parser = argparse.ArgumentParser(
-        description="Notenrechner – Verwalte deine Noten im bayerischen Notensystem (1–6)."
+        description="Notenrechner - Verwalte deine Noten im bayerischen Notensystem (1-6)."
     )
     parser.add_argument(
         "-f", "--file",
