@@ -1,7 +1,7 @@
 import argparse
 from ui import print_menu, print_title, create_subject, add_grade, delete_subject, show_overview, filter_by_tag
-from storage import save_subjects, load_subjects, FILE_PATH
-from models import Grade, Subject
+from storage import save_subjects, load_subjects, load_config, FILE_PATH
+from models import Grade, Subject, RewardConfig
 
 VERSION = "v1.2.4"
 
@@ -22,6 +22,9 @@ def main():
     subjects = load_subjects(args.file)
     if subjects:
         print(f"Datei geladen: {args.file}")
+
+    config = load_config()
+    reward_config = RewardConfig(points_map=config[0], money_per_point=config[1])
 
     while True:
         choice = print_menu({

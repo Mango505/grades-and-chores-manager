@@ -1,3 +1,6 @@
+DEFAULT_POINTS_MAP = {1: 10, 2: 8, 3: 6, 4: 4, 5: 2, 6: 0}  #* placeholder
+DEFAULT_MONEY_PER_POINT = 0.50                              #* placeholder
+
 class Grade:
     def __init__(self, value: float, weight: float = 1.0, tags: list[str] | None = None):
         self.tags = tags if tags is not None else []
@@ -53,3 +56,38 @@ class Subject:
         subject = cls(data["name"])
         subject.grades = [Grade.from_dict(g) for g in data["grades"]]
         return subject
+
+
+class RewardConfig:
+    def __init__(
+        self,
+        points_map: dict[int, int] = None,
+        money_per_point: float = DEFAULT_MONEY_PER_POINT,
+        balance: float = 0.0
+    ):
+        self.points_map = points_map if points_map is not None else DEFAULT_POINTS_MAP.copy()
+        self.money_per_point = money_per_point
+        self.balance = balance  # earned but not yet redeemed money
+
+    def points_for_grade(self, value: float) -> int:
+        """Return points for a grade value. Rounds to nearest integer key."""
+        return self.points_map.get(round(value), 0)
+
+    def money_for_points(self, points: int) -> float:
+        """Convert points to monetary value."""
+        return points * self.money_per_point
+
+    def to_dict(self) -> dict:
+        return {
+            "points_map": {int(k): v for k, v in self.points_map.items()},
+            "money_per_point": self.money_per_point,
+            "balance": self.balance
+        }
+
+    @classmethod
+    def from_dict(cls, data: dict) -> "RewardConfig":
+        return cls(
+            points_map={int(k): v for k, v in data["points_map"].items()},
+            money_per_point=data["money_per_point"],
+            balance=data["balance"]
+        )
