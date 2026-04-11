@@ -1,4 +1,4 @@
-from models import Grade, Subject
+from models import Grade, Subject, RewardConfig
 
 def create_subject(subjects: list[Subject]) -> list[Subject]:
     first = True
@@ -18,11 +18,11 @@ def create_subject(subjects: list[Subject]) -> list[Subject]:
         print("Fach existiert bereits. Bitte einen anderen Namen angeben, der noch nicht existiert.")
 
 
-def add_grade(subjects: list[Subject]) -> list[Subject]:
+def add_grade(subjects: list[Subject], config: RewardConfig) -> tuple[list[Subject], RewardConfig]:
     print_subtitle("Note hinzufügen")
     if not subjects:
         print("Keine Fächer vorhanden.")
-        return subjects
+        return subjects, config
     first = True
 
     while True:
@@ -37,7 +37,7 @@ def add_grade(subjects: list[Subject]) -> list[Subject]:
             ).strip().lower()
             if choice == "z":
                 print("Vorgang abgebrochen.")
-                return subjects
+                return subjects, config
             choice = int(choice)
             choice = subjects[choice]
 
@@ -63,14 +63,22 @@ def add_grade(subjects: list[Subject]) -> list[Subject]:
             if grade.is_valid():
                 choice.add_grade(grade)    # add the Grade to the desired subject
                 print(f"Neue Note zum Fach '{choice.name}' hinzugefügt.")
-                return subjects            
+
+                points = config.points_for_grade(value)
+                print(f"Note {value}: {points} Punkte")
+                money = config.money_for_points(points)
+                print(f"+{money:.2f} €")
+                config.balance += money
+                print(f"Aktueller Kontostand: {config.balance:.2f} €")
+
+                return subjects, config
             print("Ungültige Eingabe. Note muss zwischen 1 und 6 liegen und Gewichtung muss höher als 0 sein.")
 
         except ValueError:
             print("Ungültige Eingabe. Bitte eine Zahl eingeben.")
         except EOFError:
             print("EOFError")
-            return
+            return subjects, config
 
 
 def delete_subject(subjects: list[Subject]) -> list[Subject]:

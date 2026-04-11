@@ -45,7 +45,7 @@ def main():
         elif choice == "1":
             create_subject(subjects)
         elif choice == "2":
-            add_grade(subjects)
+            add_grade(subjects, reward_config)
         elif choice == "3":
             delete_subject(subjects)
         elif choice == "4":
