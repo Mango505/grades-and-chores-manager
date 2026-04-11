@@ -3,7 +3,7 @@ from ui import print_menu, print_title, add_grade, redeem, show_overview, filter
 from storage import save_subjects, load_subjects, save_config, load_config, save_wallet, load_wallet, DATA_PATH
 from models import RewardConfig
 
-VERSION = "v1.2.4"
+VERSION = "v1.3.0"
 
 def main():
     parser = argparse.ArgumentParser(
