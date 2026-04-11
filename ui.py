@@ -1,28 +1,10 @@
-from models import Grade, Subject, RewardConfig
+from models import Grade, Subject, RewardConfig, Wallet
 
-def create_subject(subjects: list[Subject]) -> list[Subject]:
-    first = True
-    print_subtitle("Fach erstellen")
-    
-    while True:
-        if not first: print()
-        first = False
-
-        raw = input("Name für neues Fach eingeben: ").strip()
-        if not raw: print("Name darf nicht leer sein."); continue
-        
-        if raw not in [s.name for s in subjects]:
-            subjects.append(Subject(raw))
-            print(f"'{raw}' wurde als neues Fach hinzugefügt.")
-            return subjects
-        print("Fach existiert bereits. Bitte einen anderen Namen angeben, der noch nicht existiert.")
-
-
-def add_grade(subjects: list[Subject], config: RewardConfig) -> tuple[list[Subject], RewardConfig]:
+def add_grade(subjects: list[Subject], config: RewardConfig, wallet: Wallet) -> tuple[list[Subject], RewardConfig]:
     print_subtitle("Note hinzufügen")
     if not subjects:
         print("Keine Fächer vorhanden.")
-        return subjects, config
+        return subjects, config, wallet
     first = True
 
     while True:
@@ -37,7 +19,7 @@ def add_grade(subjects: list[Subject], config: RewardConfig) -> tuple[list[Subje
             ).strip().lower()
             if choice == "z":
                 print("Vorgang abgebrochen.")
-                return subjects, config
+                return subjects, config, wallet
             choice = int(choice)
             choice = subjects[choice]
 
@@ -67,49 +49,44 @@ def add_grade(subjects: list[Subject], config: RewardConfig) -> tuple[list[Subje
                 points = config.points_for_grade(value)
                 money = config.money_for_points(points)
                 print(f"Note {value}: {points} Punkte (+{money:.2f} €)")
-                config.balance += money
-                print(f"Aktueller Kontostand: {config.balance:.2f} €")
+                wallet.balance += money
+                print(f"Aktueller Kontostand: {wallet.balance:.2f} €")
 
-                return subjects, config
+                return subjects, config, wallet
             print("Ungültige Eingabe. Note muss zwischen 1 und 6 liegen und Gewichtung muss höher als 0 sein.")
 
         except ValueError:
             print("Ungültige Eingabe. Bitte eine Zahl eingeben.")
         except EOFError:
             print("EOFError")
-            return subjects, config
+            return subjects, config, wallet
 
 
-def delete_subject(subjects: list[Subject]) -> list[Subject]:
-    print_subtitle("Fach löschen")
-    if not subjects:
-        print("Keine Fächer vorhanden.")
-        return subjects
-    first = True
-
+def redeem(wallet: Wallet) -> Wallet:
+    print_subtitle("Guthaben einlösen")
+    
     while True:
         try:
-            if not first: print()
-            first = False
+            cost = input("Betrag eingeben, der vom Konto abgezogen werden soll: ").strip()
+            cost = float(cost)
+            if cost > wallet.balance:
+                print(f"Ungültige Eingabe. Betrag muss kleiner oder gleich dem aktuellen Kontostand von {wallet.balance:.2f} € sein.")
+                continue
+            if cost <= 0.01:
+                print("Ungültige Eingabe. Betrag muss größer als 0,01 € sein.")
+                continue
 
-            choice = print_subjects(
-                subjects,
-                ", welches entfernt werden soll",
-            ).strip().lower()
-            if choice == "z":
-                print("Vorgang abgebrochen.")
-                return subjects
-            choice = int(choice)
-            choice = subjects[choice]
+            description = input("Beschreibung hinzufügen oder leerlassen: ").strip()
 
-            confirm = input(f"Bist du sicher dass du '{choice.name}' entfernen möchtest? 'J' zum Bestätigen: ").strip().lower()
+            print()
+            print(f"Zusammenfassung: -{cost:.2f} € | {description if description else '<keine Beschreibung>'}")
+            confirm = input("Ist das korrekt? 'J' zum Bestätigen: ").strip().lower()
             if confirm == "j":
-                subjects.remove(choice)
-                print("Fach entfernt.")
-                return subjects
-
+                wallet.redeem(cost, description if description else "<keine Beschreibung>")
+                print(f"Guthaben erfolgreich eingelöst. Neuer Kontostand: {wallet.balance:.2f} €")
+                return wallet
             print("Vorgang abgebrochen.")
-
+        
         except ValueError:
             print("Ungültige Eingabe. Bitte eine Zahl eingeben.")
 
@@ -190,10 +167,13 @@ def filter_by_tag(subjects: list[Subject]) -> list[Subject]:
     return subjects
 
 
-def show_balance(config: RewardConfig) -> RewardConfig:
-    print_subtitle("Kontostand")
-    print(f"Aktueller Kontostand: {config.balance:.2f} €", end="\n\n")
+def show_balance(config: RewardConfig, wallet: Wallet) -> tuple[RewardConfig, Wallet]:
+    print_subtitle("Kontoübersicht")
 
+    # Balance
+    print(f"Aktueller Kontostand: {wallet.balance:.2f} €", end="\n\n")
+
+    # Configuration
     print("Punkte pro Note:")
     items = list(config.points_map.items())
     for i, (k, v) in enumerate(items):
@@ -202,7 +182,95 @@ def show_balance(config: RewardConfig) -> RewardConfig:
 
     print(f"Geld pro Punkt: {config.money_per_point:.2f} €")
 
-    return config
+    # Redemptions
+    if wallet.redemptions:
+        print("Letzte Einlösungen:")
+        for r in wallet.redemptions[-5:][::-1]:  # show last 5 redemptions
+            desc = r["description"]
+            cost = r["cost"]
+            date = r.get("date", "<unbekanntes Datum>")
+            print(f"{desc} | -{cost:.2f} € | {date}")
+
+        while True:
+            more = print_menu({
+                "1": "Fünf weitere Einlösungen anzeigen",
+                "2": "Alle Einlösungen anzeigen",
+                "z": "Zurück zum Menü"
+            },
+            "Was möchtest du tun?",
+            start="\n"
+            )
+            if more == "z": break
+
+            elif more == "1":
+                for r in wallet.redemptions[-10:-5][::-1]:  # show 5 more redemptions
+                    desc = r["description"]
+                    cost = r["cost"]
+                    date = r.get("date", "<unbekanntes Datum>")
+                    print(f"{desc} | -{cost:.2f} € | {date}")
+
+            elif more == "2":
+                if len(wallet.redemptions) > 15:   # ask before showing long list
+                    confirm = input(f"Sollen alle {len(wallet.redemptions)} Einträge angezeigt werden? 'J' zum Fortfahren: ").strip().lower()
+                    if confirm != "j": continue
+                for r in wallet.redemptions:    # show all, including previously shown
+                    desc = r["description"]
+                    cost = r["cost"]
+                    date = r.get("date", "<unbekanntes Datum>")
+                    print(f"{desc} | -{cost:.2f} € | {date}")
+
+    return config, wallet
+
+
+def create_subject(subjects: list[Subject]) -> list[Subject]:
+    first = True
+    print_subtitle("Fach erstellen")
+    
+    while True:
+        if not first: print()
+        first = False
+
+        raw = input("Name für neues Fach eingeben: ").strip()
+        if not raw: print("Name darf nicht leer sein."); continue
+        
+        if raw not in [s.name for s in subjects]:
+            subjects.append(Subject(raw))
+            print(f"'{raw}' wurde als neues Fach hinzugefügt.")
+            return subjects
+        print("Fach existiert bereits. Bitte einen anderen Namen angeben, der noch nicht existiert.")
+
+
+def delete_subject(subjects: list[Subject]) -> list[Subject]:
+    print_subtitle("Fach löschen")
+    if not subjects:
+        print("Keine Fächer vorhanden.")
+        return subjects
+    first = True
+
+    while True:
+        try:
+            if not first: print()
+            first = False
+
+            choice = print_subjects(
+                subjects,
+                ", welches entfernt werden soll",
+            ).strip().lower()
+            if choice == "z":
+                print("Vorgang abgebrochen.")
+                return subjects
+            choice = int(choice)
+            choice = subjects[choice]
+
+            confirm = input(f"Bist du sicher dass du '{choice.name}' entfernen möchtest? 'J' zum Bestätigen: ").strip().lower()
+            if confirm == "j":
+                subjects.remove(choice)
+                print("Fach entfernt.")
+                return subjects
+            print("Vorgang abgebrochen.")
+
+        except ValueError:
+            print("Ungültige Eingabe. Bitte eine Zahl eingeben.")
 
 
 def print_subjects(subjects: list[Subject], additional: str = "") -> str:
@@ -231,6 +299,9 @@ def print_subtitle(title: str):
 
 
 def print_menu(options: dict, title="Choose mode:", prompt="> ", start: str | None = None) -> str:
+    """
+        Returns key of chosen option (lowercase).
+    """
     first = True
 
     while True:

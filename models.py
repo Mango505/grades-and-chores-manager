@@ -1,12 +1,12 @@
-DEFAULT_POINTS_MAP = {1: 10, 2: 8, 3: 6, 4: 4, 5: 2, 6: 0}  #* placeholder
-DEFAULT_MONEY_PER_POINT = 0.50                              #* placeholder
+from datetime import datetime
+DEFAULT_POINTS_MAP = {1: 10, 2: 8, 3: 6, 4: 4, 5: 2, 6: 0}  # default
+DEFAULT_MONEY_PER_POINT = 0.50                              # default
 
 class Grade:
     def __init__(self, value: float, weight: float = 1.0, tags: list[str] | None = None):
-        self.tags = tags if tags is not None else []
         self.value = value
         self.weight = weight
-        self.tags = tags
+        self.tags = tags if tags is not None else []
 
     def is_valid(self) -> bool:
         return 1.0 <= self.value <= 6.0 and self.weight > 0.0
@@ -63,11 +63,9 @@ class RewardConfig:
         self,
         points_map: dict[int, int] = None,
         money_per_point: float = DEFAULT_MONEY_PER_POINT,
-        balance: float = 0.0
     ):
         self.points_map = points_map if points_map is not None else DEFAULT_POINTS_MAP.copy()
         self.money_per_point = money_per_point
-        self.balance = balance  # earned but not yet redeemed money
 
     def points_for_grade(self, value: float) -> int:
         """Return points for a grade value. Rounds to nearest integer key."""
@@ -81,7 +79,6 @@ class RewardConfig:
         return {
             "points_map": {int(k): v for k, v in self.points_map.items()},
             "money_per_point": self.money_per_point,
-            "balance": self.balance
         }
 
     @classmethod
@@ -89,5 +86,34 @@ class RewardConfig:
         return cls(
             points_map={int(k): v for k, v in data["points_map"].items()},
             money_per_point=data["money_per_point"],
-            balance=data["balance"]
+        )
+
+
+class Wallet:
+    def __init__(self, balance: float, redemptions: list[dict]):
+        self.balance = balance          # earned but not yet redeemed money
+        self.redemptions = redemptions  # list of dicts with "description" and "cost" for each redemption
+
+    def redeem(self, cost: float, description: str = "<keine Beschreibung>") -> None:
+        """
+            Subtract cost from balance and log the redemption.
+        """
+        self.balance -= cost
+        self.redemptions.append({
+            "description": description,
+            "cost": cost,
+            "date": datetime.now().strftime("%d.%m.%Y %H:%M")   # e.g. "11.04.2026 14:30"
+        })
+
+    def to_dict(self) -> dict:
+        return {
+            "balance": self.balance,
+            "redemptions": self.redemptions,
+        }
+
+    @classmethod
+    def from_dict(cls, data: dict) -> "Wallet":
+        return cls(
+            balance=data["balance"],
+            redemptions=data["redemptions"]
         )

@@ -1,6 +1,6 @@
 import argparse
-from ui import print_menu, print_title, create_subject, add_grade, delete_subject, show_overview, filter_by_tag, show_balance
-from storage import save_subjects, load_subjects, save_config, load_config, DATA_PATH
+from ui import print_menu, print_title, add_grade, redeem, show_overview, filter_by_tag, show_balance, create_subject, delete_subject
+from storage import save_subjects, load_subjects, save_config, load_config, save_wallet, load_wallet, DATA_PATH
 from models import RewardConfig
 
 VERSION = "v1.2.4"
@@ -22,17 +22,18 @@ def main():
     subjects = load_subjects(args.file)
     if subjects:
         print(f"Datei geladen: {args.file}")
-
     reward_config = load_config()
+    wallet = load_wallet()
 
     while True:
         choice = print_menu({
-            "1": "Fach erstellen",
-            "2": "Note hinzufügen",
-            "3": "Fach löschen",
-            "4": "Notenübersicht",
-            "5": "Nach Tags filtern",
-            "6": "Aktuellen Kontostand anzeigen",
+            "1": "Note hinzufügen",
+            "2": "Guthaben einlösen",
+            "3": "Notenübersicht",
+            "4": "Nach Tags filtern",
+            "5": "Kontoübersicht",
+            "6": "Fach erstellen",
+            "7": "Fach löschen",
             "q": "Beenden"
         },
         "-" * 12 + " MENÜ " + "-" * 12,
@@ -42,19 +43,22 @@ def main():
         if choice == "q":
             save_subjects(subjects, args.file)
             save_config(reward_config)
+            save_wallet(wallet)
             break
         elif choice == "1":
-            create_subject(subjects)
+            add_grade(subjects, reward_config, wallet)
         elif choice == "2":
-            add_grade(subjects, reward_config)
+            redeem(wallet)
         elif choice == "3":
-            delete_subject(subjects)
-        elif choice == "4":
             show_overview(subjects)
-        elif choice == "5":
+        elif choice == "4":
             filter_by_tag(subjects)
+        elif choice == "5":
+            show_balance(reward_config, wallet)
         elif choice == "6":
-            show_balance(reward_config)
+            create_subject(subjects)
+        elif choice == "7":
+            delete_subject(subjects)
 
 
 if __name__ == "__main__":
