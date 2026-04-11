@@ -62,12 +62,11 @@ def add_grade(subjects: list[Subject], config: RewardConfig) -> tuple[list[Subje
 
             if grade.is_valid():
                 choice.add_grade(grade)    # add the Grade to the desired subject
-                print(f"Neue Note zum Fach '{choice.name}' hinzugefügt.")
+                print(f"\nNeue Note zum Fach '{choice.name}' hinzugefügt.")
 
                 points = config.points_for_grade(value)
-                print(f"Note {value}: {points} Punkte")
                 money = config.money_for_points(points)
-                print(f"+{money:.2f} €")
+                print(f"Note {value}: {points} Punkte (+{money:.2f} €)")
                 config.balance += money
                 print(f"Aktueller Kontostand: {config.balance:.2f} €")
 
@@ -189,6 +188,21 @@ def filter_by_tag(subjects: list[Subject]) -> list[Subject]:
 
     print(f"\nGesamtdurchschnitt für '{raw_tags}': {total_value / total_weight:.2f}")
     return subjects
+
+
+def show_balance(config: RewardConfig) -> RewardConfig:
+    print_subtitle("Kontostand")
+    print(f"Aktueller Kontostand: {config.balance:.2f} €", end="\n\n")
+
+    print("Punkte pro Note:")
+    items = list(config.points_map.items())
+    for i, (k, v) in enumerate(items):
+        sep = " | " if i < len(items) - 1 else "\n\n"
+        print(f"Note {k}: {v} Pt.", end=sep)
+
+    print(f"Geld pro Punkt: {config.money_per_point:.2f} €")
+
+    return config
 
 
 def print_subjects(subjects: list[Subject], additional: str = "") -> str:

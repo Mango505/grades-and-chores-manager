@@ -1,5 +1,5 @@
 import argparse
-from ui import print_menu, print_title, create_subject, add_grade, delete_subject, show_overview, filter_by_tag
+from ui import print_menu, print_title, create_subject, add_grade, delete_subject, show_overview, filter_by_tag, show_balance
 from storage import save_subjects, load_subjects, save_config, load_config, DATA_PATH
 from models import RewardConfig
 
@@ -30,11 +30,12 @@ def main():
             "1": "Fach erstellen",
             "2": "Note hinzufügen",
             "3": "Fach löschen",
-            "4": "Übersicht",
+            "4": "Notenübersicht",
             "5": "Nach Tags filtern",
+            "6": "Aktuellen Kontostand anzeigen",
             "q": "Beenden"
         },
-        "-" * 8 + " MENÜ " + "-" * 8,
+        "-" * 12 + " MENÜ " + "-" * 12,
         start="\n"
         )
 
@@ -52,6 +53,8 @@ def main():
             show_overview(subjects)
         elif choice == "5":
             filter_by_tag(subjects)
+        elif choice == "6":
+            show_balance(reward_config)
 
 
 if __name__ == "__main__":
