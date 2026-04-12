@@ -3,7 +3,7 @@ from ui import print_menu, print_title, add_grade, redeem, show_overview, filter
 from storage import save_app_config, load_app_config, save_subjects, load_subjects, save_wallet, load_wallet, save_reward_config, load_reward_config, APPCONFIG_PATH, DATA_PATH, WALLET_PATH, REWARDCONFIG_PATH
 from models import RewardConfig
 
-VERSION = "v1.3.1"
+VERSION = "v1.4.0"
 
 def main():
     # --- Argument parser ---
