@@ -1,4 +1,7 @@
-from models import Grade, Subject, RewardConfig, Wallet
+from models import Grade, Subject, Wallet, RewardConfig, AppConfig
+import copy
+
+# --- Basic functions ---
 
 def add_grade(subjects: list[Subject], config: RewardConfig, wallet: Wallet) -> tuple[list[Subject], RewardConfig]:
     print_subtitle("Note hinzufügen")
@@ -173,15 +176,6 @@ def show_balance(config: RewardConfig, wallet: Wallet) -> tuple[RewardConfig, Wa
     # Balance
     print(f"Aktueller Kontostand: {wallet.balance:.2f} €", end="\n\n")
 
-    # Configuration
-    print("Punkte pro Note:")
-    items = list(config.points_map.items())
-    for i, (k, v) in enumerate(items):
-        sep = " | " if i < len(items) - 1 else "\n\n"
-        print(f"Note {k}: {v} Pt.", end=sep)
-
-    print(f"Geld pro Punkt: {config.money_per_point:.2f} €")
-
     # Redemptions
     if wallet.redemptions:
         print("Letzte Einlösungen:")
@@ -273,6 +267,154 @@ def delete_subject(subjects: list[Subject]) -> list[Subject]:
             print("Ungültige Eingabe. Bitte eine Zahl eingeben.")
 
 
+def edit_config(app_config: AppConfig, reward_config: RewardConfig) -> tuple[AppConfig, RewardConfig]:
+    print_subtitle("Konfiguration anpassen")
+
+    choice = print_menu({
+        "1": "Belohnungskonfiguration anpassen",
+        "2": "Standard-Pfade anpassen",
+        "3": "Ladehinweise anpassen",
+        "z": "Zurück"
+    })
+
+    if choice == "z":
+        return app_config, reward_config
+    elif choice == "1":
+        return app_config, configure_rewards(reward_config)
+    elif choice == "2":
+        return configure_paths(app_config), reward_config
+    elif choice == "3":
+        return configure_loading(app_config), reward_config
+
+# --- Configuration editing functions ---
+
+def configure_rewards(config: RewardConfig) -> RewardConfig:
+    print_subtitle("Belohnungskonfiguration anpassen", 2, "-")
+
+    # Print current configuration
+    print_subtitle("Aktuelle Konfiguration", 3, "=")
+    print_configuration("reward", config)
+
+    choice = print_menu({
+        "1": "Punkte pro Note",
+        "2": "Geld pro Punkt",
+        "z": "Zurück"
+    },
+    "Was möchtest du ändern?",
+    start="\n"
+    )
+
+    if choice == "z":
+        return config
+
+    elif choice == "1":
+        print_subtitle("Punkte pro Note ändern", 4, "-")
+        new_config = copy.deepcopy(config)   # create a copy of the current config to edit, so changes are not applied until confirmation
+
+        for g, p in new_config.points_map.items():
+            while True:
+                try:
+                    new = input(f"Neuen Punktewert für Note {g} eingeben oder Leerlassen zum Beibehalten (Aktuell {p} Punkte)" + "\n> ").strip()
+                    if new:
+                        new = int(new)
+                        new_config.points_map[g] = new
+                        break
+                    else:
+                        break
+                except ValueError:
+                    print("Ungültige Eingabe. Bitte eine Ganzzahl eingeben.\n")
+
+        # Print new configuration
+        print()
+        print_subtitle("Neue Konfiguration", 3, "=")
+        print_configuration("points_map", new_config)
+
+        confirm = input("Bist du sicher dass du diese Änderungen übernehmen möchtest? 'J' zum Fortfahren: ").strip().lower()
+        if confirm == "j": print("Änderungen übernommen."); return new_config
+        else: print("Vorgang abgebrochen."); return config
+
+    elif choice == "2":
+        money = config.money_per_point
+
+        while True:
+            try:
+                raw = input(f"Neuen Geldwert pro Punkt eingeben oder leerlassen zum Beibehalten (Aktuell {money:.2f} € pro Punkt)" + "\n> ").strip()
+                new_money = float(raw)
+
+                confirm = input(f"Bist du sicher dass du den Geldwert pro Punkt zu {new_money:.2f} € ändern möchtest? 'J' zum Fortfahren: ").strip().lower()
+                if confirm == "j": config.money_per_point = new_money; print("Änderungen übernommen."); return config
+                else: print("Vorgang abgebrochen."); return config
+
+            except ValueError:
+                print("Ungültige Eingabe. Bitte eine Zahl eingeben.")
+
+
+def configure_paths(config: AppConfig) -> AppConfig:
+    print_subtitle("Standard-Pfade anpassen", 2, "-")
+    print_subtitle("Aktuelle Konfiguration", 3, "=")
+    print_configuration("paths", config)
+
+    choice = print_menu({
+        "1": "App-Konfigurationsdatei",
+        "2": "Noten-Datei",
+        "3": "Wallet-Datei",
+        "4": "Belohnungs-Konfigurationsdatei",
+        "z": "Zurück"
+    },
+    "Welchen Pfad möchtest du ändern?",
+    start="\n"
+    )
+
+    if choice == "z":
+        return config
+
+    elif choice == "1":
+        new = input(f"Neuen Pfad für die App-Konfigurationsdatei eingeben (Aktuell: {config.app_config_path})" + "\n> ").strip()
+        confirm = input(f"Bist du sicher dass du den Pfad der App-Konfigurationsdatei zu {new} ändern möchtest? 'J' zum Fortfahren: ").strip().lower()
+        if confirm == "j": config.app_config_path = new; print("Änderungen übernommen."); return config
+        else: print("Vorgang abgebrochen."); return config
+    
+    elif choice == "2":
+        new = input(f"Neuen Pfad für die Noten-Datei eingeben (Aktuell: {config.data_path})" + "\n> ").strip()
+        confirm = input(f"Bist du sicher dass du den Pfad der Noten-Datei zu {new} ändern möchtest? 'J' zum Fortfahren: ").strip().lower()
+        if confirm == "j": config.data_path = new; print("Änderungen übernommen."); return config
+        else: print("Vorgang abgebrochen."); return config
+    
+    elif choice == "3":
+        new = input(f"Neuen Pfad für die Wallet-Datei eingeben (Aktuell: {config.wallet_path})" + "\n> ").strip()
+        confirm = input(f"Bist du sicher dass du den Pfad der Wallet-Datei zu {new} ändern möchtest? 'J' zum Fortfahren: ").strip().lower()
+        if confirm == "j": config.wallet_path = new; print("Änderungen übernommen."); return config
+        else: print("Vorgang abgebrochen."); return config
+    
+    elif choice == "4":
+        new = input(f"Neuen Pfad für die Belohnungs-Konfigurationsdatei eingeben (Aktuell: {config.reward_config_path})" + "\n> ").strip()
+        confirm = input(f"Bist du sicher dass du den Pfad der Belohnungs-Konfigurationsdatei zu {new} ändern möchtest? 'J' zum Fortfahren: ").strip().lower()
+        if confirm == "j": config.reward_config_path = new; print("Änderungen übernommen."); return config
+        else: print("Vorgang abgebrochen."); return config
+
+
+def configure_loading(config: AppConfig) -> AppConfig:
+    print_subtitle("Ladehinweise anpassen", 2, "-")
+    print_configuration("verbose_loading", config)
+
+    action = "aktivieren" if not config.verbose_loading else "deaktivieren"
+    choice = print_menu({
+        "1": f"Ladehinweise {action}",
+        "z": "Zurück"
+    },
+    "Was möchtest du tun?"
+    )
+
+    if choice == "z":
+        return config
+    elif choice == "1":
+        config.verbose_loading = not config.verbose_loading
+        status = "aktiviert" if config.verbose_loading else "deaktiviert"
+        print(f"Ladehinweise wurden {status}.")
+        return config
+
+# --- Templates ---
+
 def print_subjects(subjects: list[Subject], additional: str = "") -> str:
     """Shows the user a list with indexes of existing subjects to select from"""
     
@@ -292,13 +434,31 @@ def print_title(title: str):
     print(border)
 
 
-def print_subtitle(title: str):
-    """Prints a subtitle, e.g. print_subtitle("subtitle")"""
-    print("\n" + title.upper())
-    print("=" * 30)
+def print_subtitle(title: str, size: int = 1, symbol: str = "=", width = 30, min_symbols = 3):
+    """
+        Prints a subtitle, e.g. print_subtitle("subtitle"). A bigger size value means smaller subtitle, so smallest size is 4, biggest is 1. min_symbols only needed for sizes 3 and 4.
+    """
+
+    if size == 1:
+        print("\n" + title.upper())
+        print(symbol * width)
+    
+    elif size == 2:
+        print("\n" + title)
+        print(symbol * width)
+    
+    elif size == 3:
+        text = f" {title.upper()} "
+        width = max(width, len(text) + min_symbols * 2)
+        print(text.center(width, symbol))
+    
+    elif size == 4:
+        text = f" {title} "
+        width = max(width, len(text) + min_symbols * 2)
+        print(text.center(width, symbol))
 
 
-def print_menu(options: dict, title="Choose mode:", prompt="> ", start: str | None = None) -> str:
+def print_menu(options: dict, title="", prompt="> ", start: str | None = None) -> str:
     """
         Returns key of chosen option (lowercase).
     """
@@ -308,8 +468,9 @@ def print_menu(options: dict, title="Choose mode:", prompt="> ", start: str | No
         if not first and not start: print()
         first = False
 
-        if start: print(start + title)
-        else: print(title)
+        if title:
+            if start: print(start + title)
+            else: print(title)
         
         for key, label in options.items():
             print(f"[{key}] {label}")
@@ -320,3 +481,34 @@ def print_menu(options: dict, title="Choose mode:", prompt="> ", start: str | No
             return choice
 
         print(f"Ungültige Eingabe. Bitte eine dieser Optionen eingeben: {', '.join(options.keys())}.")
+
+
+def print_configuration(mode: str, config: AppConfig | RewardConfig):
+    """Prints configuration values. Modes are: 'reward', 'points_map', 'money_per_point', 'paths', 'verbose_loading'."""
+    if mode == "reward":
+        print(f"Geld pro Punkt: {config.money_per_point:.2f} €")
+
+        print("Punkte pro Note:")
+        items = list(config.points_map.items())
+        for i, (k, v) in enumerate(items):
+            print(f"Note {k}: {v} Pt.", end="\n")
+    
+    elif mode == "points_map":
+        print("Punkte pro Note:")
+        items = list(config.points_map.items())
+        for i, (k, v) in enumerate(items):
+            sep = "\n" if i < len(items) - 1 else "\n\n"
+            print(f"Note {k}: {v} Pt.", end=sep)
+    
+    elif mode == "money_per_point":
+        print(f"Geld pro Punkt: {config.money_per_point:.2f} €")
+
+    elif mode == "paths":
+        print(f"Pfad der App-Konfigurationsdatei: {config.app_config_path}")
+        print(f"Pfad der Noten-Datei: {config.data_path}")
+        print(f"Pfad der Wallet-Datei: {config.wallet_path}")
+        print(f"Pfad der Belohnungs-Konfigurationsdatei: {config.reward_config_path}")
+
+    elif mode == "verbose_loading":
+        status = "aktiviert" if config.verbose_loading else "deaktiviert"
+        print(f"Status der Ladehinweise: {status}")

@@ -1,10 +1,38 @@
 import json
 import os
-from models import Subject, RewardConfig, Wallet
+from models import Subject, RewardConfig, Wallet, AppConfig
 
+APPCONFIG_PATH = "data/app_config.json"
 DATA_PATH = "data/grades.json"
-CONFIG_PATH = "data/config.json"
 WALLET_PATH = "data/wallet.json"
+REWARDCONFIG_PATH = "data/reward_config.json"
+
+
+def save_app_config(config: AppConfig, path: str = APPCONFIG_PATH) -> None:
+    """
+        Save app configuration to JSON file.
+    """
+    os.makedirs(os.path.dirname(path), exist_ok=True)
+
+    with open(path, "w") as f:
+        json.dump(config.to_dict(), f, indent=2)
+
+def load_app_config(path: str = APPCONFIG_PATH) -> AppConfig:
+    """
+        Load app configuration from JSON file. Returns default AppConfig if config file is missing or corrupt.
+    """
+    if not os.path.exists(path):
+        return AppConfig()   # returns default config if file is missing
+
+    try:
+        with open(path, "r") as f:
+            data = json.load(f)
+            return AppConfig.from_dict(data)
+
+    except json.JSONDecodeError:
+        print(f"Warnung: {APPCONFIG_PATH} ist korrupt. Es wird die Standardkonfiguration geladen.")
+        return AppConfig()   # returns default config if file is corrupt
+
 
 def save_subjects(subjects: list[Subject], path: str = DATA_PATH) -> None:
     """
@@ -14,7 +42,6 @@ def save_subjects(subjects: list[Subject], path: str = DATA_PATH) -> None:
 
     with open(path, "w") as f:
         json.dump({"subjects": [s.to_dict() for s in subjects]}, f, indent=2)
-
 
 def load_subjects(path: str = DATA_PATH) -> list[Subject]:
     """
@@ -35,33 +62,6 @@ def load_subjects(path: str = DATA_PATH) -> list[Subject]:
         return []   # returns empty list if file is corrupt
 
 
-def save_config(config: RewardConfig, path: str = CONFIG_PATH) -> None:
-    """
-        Save reward configuration to JSON file.
-    """
-    os.makedirs(os.path.dirname(path), exist_ok=True)
-
-    with open(path, "w") as f:
-        json.dump(config.to_dict(), f, indent=2)
-
-
-def load_config(path: str = CONFIG_PATH) -> RewardConfig:
-    """
-        Load reward configuration from JSON file. Returns default RewardConfig if config file is missing or corrupt.
-    """
-    if not os.path.exists(path):
-        return RewardConfig()   # returns default config if file is missing
-
-    try:
-        with open(path, "r") as f:
-            data = json.load(f)
-            return RewardConfig.from_dict(data)
-
-    except json.JSONDecodeError:
-        print(f"Warnung: {CONFIG_PATH} ist korrupt. Es wird die Standardkonfiguration geladen.")
-        return RewardConfig()   # returns default config if file is corrupt
-
-
 def save_wallet(wallet: Wallet, path: str = WALLET_PATH) -> None:
     """
         Save wallet data to JSON file.
@@ -70,7 +70,6 @@ def save_wallet(wallet: Wallet, path: str = WALLET_PATH) -> None:
 
     with open(path, "w") as f:
         json.dump(wallet.to_dict(), f, indent=2)
-
 
 def load_wallet(path: str = WALLET_PATH) -> Wallet:
     """
@@ -87,3 +86,29 @@ def load_wallet(path: str = WALLET_PATH) -> Wallet:
     except json.JSONDecodeError:
         print(f"Warnung: {WALLET_PATH} ist korrupt. Es wird ein leeres Wallet geladen.")
         return Wallet(balance=0.0, redemptions=[])  # returns empty wallet if file is corrupt
+
+
+def save_reward_config(config: RewardConfig, path: str = REWARDCONFIG_PATH) -> None:
+    """
+        Save reward configuration to JSON file.
+    """
+    os.makedirs(os.path.dirname(path), exist_ok=True)
+
+    with open(path, "w") as f:
+        json.dump(config.to_dict(), f, indent=2)
+
+def load_reward_config(path: str = REWARDCONFIG_PATH) -> RewardConfig:
+    """
+        Load reward configuration from JSON file. Returns default RewardConfig if config file is missing or corrupt.
+    """
+    if not os.path.exists(path):
+        return RewardConfig()   # returns default config if file is missing
+
+    try:
+        with open(path, "r") as f:
+            data = json.load(f)
+            return RewardConfig.from_dict(data)
+
+    except json.JSONDecodeError:
+        print(f"Warnung: {REWARDCONFIG_PATH} ist korrupt. Es wird die Standardkonfiguration geladen.")
+        return RewardConfig()   # returns default config if file is corrupt

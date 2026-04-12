@@ -58,6 +58,36 @@ class Subject:
         return subject
 
 
+class Wallet:
+    def __init__(self, balance: float, redemptions: list[dict]):
+        self.balance = balance          # earned but not yet redeemed money
+        self.redemptions = redemptions  # list of dicts with "description" and "cost" for each redemption
+
+    def redeem(self, cost: float, description: str = "<keine Beschreibung>") -> None:
+        """
+            Subtract cost from balance and log the redemption.
+        """
+        self.balance -= cost
+        self.redemptions.append({
+            "description": description,
+            "cost": cost,
+            "date": datetime.now().strftime("%d.%m.%Y %H:%M")   # e.g. "11.04.2026 14:30"
+        })
+
+    def to_dict(self) -> dict:
+        return {
+            "balance": self.balance,
+            "redemptions": self.redemptions,
+        }
+
+    @classmethod
+    def from_dict(cls, data: dict) -> "Wallet":
+        return cls(
+            balance=data["balance"],
+            redemptions=data["redemptions"]
+        )
+
+
 class RewardConfig:
     def __init__(
         self,
@@ -89,31 +119,36 @@ class RewardConfig:
         )
 
 
-class Wallet:
-    def __init__(self, balance: float, redemptions: list[dict]):
-        self.balance = balance          # earned but not yet redeemed money
-        self.redemptions = redemptions  # list of dicts with "description" and "cost" for each redemption
-
-    def redeem(self, cost: float, description: str = "<keine Beschreibung>") -> None:
-        """
-            Subtract cost from balance and log the redemption.
-        """
-        self.balance -= cost
-        self.redemptions.append({
-            "description": description,
-            "cost": cost,
-            "date": datetime.now().strftime("%d.%m.%Y %H:%M")   # e.g. "11.04.2026 14:30"
-        })
+class AppConfig:
+    def __init__(
+        self,
+        app_config_path: str = "data/app_config.json",
+        data_path: str = "data/grades.json",
+        wallet_path: str = "data/wallet.json",
+        reward_config_path: str = "data/reward_config.json",
+        verbose_loading: bool = True,   # True = "Noten geladen: ...", False = nur Warnungen
+    ):
+        self.app_config_path = app_config_path
+        self.data_path = data_path
+        self.wallet_path = wallet_path
+        self.reward_config_path = reward_config_path
+        self.verbose_loading = verbose_loading
 
     def to_dict(self) -> dict:
         return {
-            "balance": self.balance,
-            "redemptions": self.redemptions,
+            "app_config_path": self.app_config_path,
+            "data_path": self.data_path,
+            "wallet_path": self.wallet_path,
+            "reward_config_path": self.reward_config_path,
+            "verbose_loading": self.verbose_loading
         }
 
     @classmethod
-    def from_dict(cls, data: dict) -> "Wallet":
+    def from_dict(cls, data: dict) -> "AppConfig":
         return cls(
-            balance=data["balance"],
-            redemptions=data["redemptions"]
+            app_config_path=data["app_config_path"],
+            data_path=data["data_path"],
+            wallet_path=data["wallet_path"],
+            reward_config_path=data["reward_config_path"],
+            verbose_loading=data.get("verbose_loading", True)
         )
