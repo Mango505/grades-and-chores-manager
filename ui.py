@@ -384,7 +384,7 @@ def configure_paths(config: AppConfig) -> AppConfig:
                 confirm = input(f"Bist du sicher dass du den Pfad der App-Konfigurationsdatei zu {new} ändern möchtest? 'J' zum Fortfahren: ").strip().lower()
                 if confirm == "j": config.app_config_path = new; print("Änderungen übernommen."); return config
                 else: print("Vorgang abgebrochen."); return config
-            else: continue
+            else: print("Pfad darf nicht leer sein."); continue
         
         elif choice == "2":
             new = input(f"Neuen Pfad für die Noten-Datei eingeben (Aktuell: {config.data_path})" + "\n> ").strip()
@@ -392,7 +392,7 @@ def configure_paths(config: AppConfig) -> AppConfig:
                 confirm = input(f"Bist du sicher dass du den Pfad der Noten-Datei zu {new} ändern möchtest? 'J' zum Fortfahren: ").strip().lower()
                 if confirm == "j": config.data_path = new; print("Änderungen übernommen."); return config
                 else: print("Vorgang abgebrochen."); return config
-            else: continue
+            else: print("Pfad darf nicht leer sein."); continue
         
         elif choice == "3":
             new = input(f"Neuen Pfad für die Wallet-Datei eingeben (Aktuell: {config.wallet_path})" + "\n> ").strip()
@@ -400,7 +400,7 @@ def configure_paths(config: AppConfig) -> AppConfig:
                 confirm = input(f"Bist du sicher dass du den Pfad der Wallet-Datei zu {new} ändern möchtest? 'J' zum Fortfahren: ").strip().lower()
                 if confirm == "j": config.wallet_path = new; print("Änderungen übernommen."); return config
                 else: print("Vorgang abgebrochen."); return config
-            else: continue
+            else: print("Pfad darf nicht leer sein."); continue
         
         elif choice == "4":
             new = input(f"Neuen Pfad für die Belohnungs-Konfigurationsdatei eingeben (Aktuell: {config.reward_config_path})" + "\n> ").strip()
@@ -408,7 +408,7 @@ def configure_paths(config: AppConfig) -> AppConfig:
                 confirm = input(f"Bist du sicher dass du den Pfad der Belohnungs-Konfigurationsdatei zu {new} ändern möchtest? 'J' zum Fortfahren: ").strip().lower()
                 if confirm == "j": config.reward_config_path = new; print("Änderungen übernommen."); return config
                 else: print("Vorgang abgebrochen."); return config
-            else: continue
+            else: print("Pfad darf nicht leer sein."); continue
 
 
 def configure_loading(config: AppConfig) -> AppConfig:
