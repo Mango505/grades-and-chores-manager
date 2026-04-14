@@ -1,7 +1,7 @@
 import argparse
 from ui import print_menu, print_title, add_grade, redeem, show_overview, filter_by_tag, show_balance, create_subject, delete_subject, edit_config
 from storage import save_app_config, load_app_config, save_subjects, load_subjects, save_wallet, load_wallet, save_reward_config, load_reward_config, APPCONFIG_PATH, DATA_PATH, WALLET_PATH, REWARDCONFIG_PATH
-from models import RewardConfig
+from models import LoadStatus
 
 VERSION = "v1.4.0"
 
@@ -40,20 +40,36 @@ def main():
     print_title(f"Notenrechner {VERSION}")
 
     # --- Load files ---
-    app_config = load_app_config(args.app_config)
-    if app_config and app_config.verbose_loading:
+    app_config, status = load_app_config(args.app_config)
+    if status == LoadStatus.MISSING:
+        print(f"Warnung: {args.app_config} existiert nicht. Es wird die Standardkonfiguration der App geladen.")
+    elif status == LoadStatus.CORRUPT:
+        print(f"Warnung: {args.app_config} ist korrupt. Es wird die Standardkonfiguration der App geladen.")
+    elif status == LoadStatus.OK and app_config.verbose_loading:
         print(f"App-Konfiguration geladen: {args.app_config}")
 
-    subjects = load_subjects(args.file)
-    if subjects and app_config.verbose_loading:
+    subjects, status = load_subjects(args.file)
+    if status == LoadStatus.MISSING:
+        print(f"Warnung: {args.file} existiert nicht. Es wird eine leere Noten-Liste geladen.")
+    elif status == LoadStatus.CORRUPT:
+        print(f"Warnung: {args.file} ist korrupt. Es wird eine leere Noten-Liste geladen.")
+    elif status == LoadStatus.OK and app_config.verbose_loading:
         print(f"Noten geladen: {args.file}")
 
-    wallet = load_wallet(args.wallet)
-    if wallet and app_config.verbose_loading:
+    wallet, status = load_wallet(args.wallet)
+    if status == LoadStatus.MISSING:
+        print(f"Warnung: {args.wallet} existiert nicht. Es wird ein leeres Wallet geladen.")
+    elif status == LoadStatus.CORRUPT:
+        print(f"Warnung: {args.wallet} ist korrupt. Es wird ein leeres Wallet geladen.")
+    elif status == LoadStatus.OK and app_config.verbose_loading:
         print(f"Wallet geladen: {args.wallet}")
     
-    reward_config = load_reward_config(args.reward_config)
-    if reward_config and app_config.verbose_loading:
+    reward_config, status = load_reward_config(args.reward_config)
+    if status == LoadStatus.MISSING:
+        print(f"Warnung: {args.reward_config} existiert nicht. Es wird die Standardkonfiguration des Belohnungssystems geladen.")
+    elif status == LoadStatus.CORRUPT:
+        print(f"Warnung: {args.reward_config} ist korrupt. Es wird die Standardkonfiguration des Belohnungssystems geladen.")
+    elif status == LoadStatus.OK and app_config.verbose_loading:
         print(f"Belohnungssystem-Konfiguration geladen: {args.reward_config}")
 
     # --- Menu flow ---

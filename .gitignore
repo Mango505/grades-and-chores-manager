@@ -1,7 +1,4 @@
 ### Project files ###
-data/grades.json
-data/config.json
-data/wallet.json
 home/
 *.json
 

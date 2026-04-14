@@ -1,3 +1,4 @@
+from datetime import datetime
 from models import Grade, Subject, Wallet, RewardConfig, AppConfig
 import copy
 
@@ -82,13 +83,17 @@ def redeem(wallet: Wallet) -> Wallet:
             description = input("Beschreibung hinzufügen oder leerlassen: ").strip()
 
             print()
-            print(f"Zusammenfassung: -{cost:.2f} € | {description if description else '<keine Beschreibung>'}")
+            desc = description if description else '<keine Beschreibung>'
+            date = datetime.now().strftime("%d.%m.%Y %H:%M")
+            print("Vorschau:")
+            print(f"{desc} | -{cost:.2f} € | {date}")
             confirm = input("Ist das korrekt? 'J' zum Bestätigen: ").strip().lower()
             if confirm == "j":
                 wallet.redeem(cost, description if description else "<keine Beschreibung>")
                 print(f"Guthaben erfolgreich eingelöst. Neuer Kontostand: {wallet.balance:.2f} €")
                 return wallet
             print("Vorgang abgebrochen.")
+            break
         
         except ValueError:
             print("Ungültige Eingabe. Bitte eine Zahl eingeben.")
@@ -270,21 +275,25 @@ def delete_subject(subjects: list[Subject]) -> list[Subject]:
 def edit_config(app_config: AppConfig, reward_config: RewardConfig) -> tuple[AppConfig, RewardConfig]:
     print_subtitle("Konfiguration anpassen")
 
-    choice = print_menu({
-        "1": "Belohnungskonfiguration anpassen",
-        "2": "Standard-Pfade anpassen",
-        "3": "Ladehinweise anpassen",
-        "z": "Zurück"
-    })
+    while True:
+        choice = print_menu({
+            "1": "App-Konfiguration ansehen",
+            "2": "Belohnungskonfiguration anpassen",
+            "3": "Standard-Pfade anpassen",
+            "4": "Ladehinweise anpassen",
+            "z": "Zurück"
+        })
 
-    if choice == "z":
-        return app_config, reward_config
-    elif choice == "1":
-        return app_config, configure_rewards(reward_config)
-    elif choice == "2":
-        return configure_paths(app_config), reward_config
-    elif choice == "3":
-        return configure_loading(app_config), reward_config
+        if choice == "z":
+            return app_config, reward_config
+        elif choice == "1":
+            print_configuration("app", app_config)
+        elif choice == "2":
+            return app_config, configure_rewards(reward_config)
+        elif choice == "3":
+            return configure_paths(app_config), reward_config
+        elif choice == "4":
+            return configure_loading(app_config), reward_config
 
 # --- Configuration editing functions ---
 
@@ -354,43 +363,52 @@ def configure_paths(config: AppConfig) -> AppConfig:
     print_subtitle("Aktuelle Konfiguration", 3, "=")
     print_configuration("paths", config)
 
-    choice = print_menu({
-        "1": "App-Konfigurationsdatei",
-        "2": "Noten-Datei",
-        "3": "Wallet-Datei",
-        "4": "Belohnungs-Konfigurationsdatei",
-        "z": "Zurück"
-    },
-    "Welchen Pfad möchtest du ändern?",
-    start="\n"
-    )
+    while True:
+        choice = print_menu({
+            "1": "App-Konfigurationsdatei",
+            "2": "Noten-Datei",
+            "3": "Wallet-Datei",
+            "4": "Belohnungs-Konfigurationsdatei",
+            "z": "Zurück"
+        },
+        "Welchen Pfad möchtest du ändern?",
+        start="\n"
+        )
 
-    if choice == "z":
-        return config
+        if choice == "z":
+            return config
 
-    elif choice == "1":
-        new = input(f"Neuen Pfad für die App-Konfigurationsdatei eingeben (Aktuell: {config.app_config_path})" + "\n> ").strip()
-        confirm = input(f"Bist du sicher dass du den Pfad der App-Konfigurationsdatei zu {new} ändern möchtest? 'J' zum Fortfahren: ").strip().lower()
-        if confirm == "j": config.app_config_path = new; print("Änderungen übernommen."); return config
-        else: print("Vorgang abgebrochen."); return config
-    
-    elif choice == "2":
-        new = input(f"Neuen Pfad für die Noten-Datei eingeben (Aktuell: {config.data_path})" + "\n> ").strip()
-        confirm = input(f"Bist du sicher dass du den Pfad der Noten-Datei zu {new} ändern möchtest? 'J' zum Fortfahren: ").strip().lower()
-        if confirm == "j": config.data_path = new; print("Änderungen übernommen."); return config
-        else: print("Vorgang abgebrochen."); return config
-    
-    elif choice == "3":
-        new = input(f"Neuen Pfad für die Wallet-Datei eingeben (Aktuell: {config.wallet_path})" + "\n> ").strip()
-        confirm = input(f"Bist du sicher dass du den Pfad der Wallet-Datei zu {new} ändern möchtest? 'J' zum Fortfahren: ").strip().lower()
-        if confirm == "j": config.wallet_path = new; print("Änderungen übernommen."); return config
-        else: print("Vorgang abgebrochen."); return config
-    
-    elif choice == "4":
-        new = input(f"Neuen Pfad für die Belohnungs-Konfigurationsdatei eingeben (Aktuell: {config.reward_config_path})" + "\n> ").strip()
-        confirm = input(f"Bist du sicher dass du den Pfad der Belohnungs-Konfigurationsdatei zu {new} ändern möchtest? 'J' zum Fortfahren: ").strip().lower()
-        if confirm == "j": config.reward_config_path = new; print("Änderungen übernommen."); return config
-        else: print("Vorgang abgebrochen."); return config
+        elif choice == "1":
+            new = input(f"Neuen Pfad für die App-Konfigurationsdatei eingeben (Aktuell: {config.app_config_path})" + "\n> ").strip()
+            if new:
+                confirm = input(f"Bist du sicher dass du den Pfad der App-Konfigurationsdatei zu {new} ändern möchtest? 'J' zum Fortfahren: ").strip().lower()
+                if confirm == "j": config.app_config_path = new; print("Änderungen übernommen."); return config
+                else: print("Vorgang abgebrochen."); return config
+            else: continue
+        
+        elif choice == "2":
+            new = input(f"Neuen Pfad für die Noten-Datei eingeben (Aktuell: {config.data_path})" + "\n> ").strip()
+            if new:
+                confirm = input(f"Bist du sicher dass du den Pfad der Noten-Datei zu {new} ändern möchtest? 'J' zum Fortfahren: ").strip().lower()
+                if confirm == "j": config.data_path = new; print("Änderungen übernommen."); return config
+                else: print("Vorgang abgebrochen."); return config
+            else: continue
+        
+        elif choice == "3":
+            new = input(f"Neuen Pfad für die Wallet-Datei eingeben (Aktuell: {config.wallet_path})" + "\n> ").strip()
+            if new:
+                confirm = input(f"Bist du sicher dass du den Pfad der Wallet-Datei zu {new} ändern möchtest? 'J' zum Fortfahren: ").strip().lower()
+                if confirm == "j": config.wallet_path = new; print("Änderungen übernommen."); return config
+                else: print("Vorgang abgebrochen."); return config
+            else: continue
+        
+        elif choice == "4":
+            new = input(f"Neuen Pfad für die Belohnungs-Konfigurationsdatei eingeben (Aktuell: {config.reward_config_path})" + "\n> ").strip()
+            if new:
+                confirm = input(f"Bist du sicher dass du den Pfad der Belohnungs-Konfigurationsdatei zu {new} ändern möchtest? 'J' zum Fortfahren: ").strip().lower()
+                if confirm == "j": config.reward_config_path = new; print("Änderungen übernommen."); return config
+                else: print("Vorgang abgebrochen."); return config
+            else: continue
 
 
 def configure_loading(config: AppConfig) -> AppConfig:
@@ -483,32 +501,48 @@ def print_menu(options: dict, title="", prompt="> ", start: str | None = None) -
         print(f"Ungültige Eingabe. Bitte eine dieser Optionen eingeben: {', '.join(options.keys())}.")
 
 
-def print_configuration(mode: str, config: AppConfig | RewardConfig):
-    """Prints configuration values. Modes are: 'reward', 'points_map', 'money_per_point', 'paths', 'verbose_loading'."""
+def print_configuration(mode: str, config: AppConfig | RewardConfig, start: str = "") -> None:
+    """
+        Prints configuration values.
+        \nModes for AppConfig: 'app', 'paths', 'verbose_loading'.
+        \nModes for RewardConfig: 'reward', 'points_map', 'money_per_point'.
+    """
+
+    # --- For RewardConfig ---
     if mode == "reward":
-        print(f"Geld pro Punkt: {config.money_per_point:.2f} €")
+        print(start + f"Geld pro Punkt: {config.money_per_point:.2f} €")
 
         print("Punkte pro Note:")
         items = list(config.points_map.items())
         for i, (k, v) in enumerate(items):
             print(f"Note {k}: {v} Pt.", end="\n")
-    
+
     elif mode == "points_map":
-        print("Punkte pro Note:")
+        print(start + "Punkte pro Note:")
         items = list(config.points_map.items())
         for i, (k, v) in enumerate(items):
             sep = "\n" if i < len(items) - 1 else "\n\n"
             print(f"Note {k}: {v} Pt.", end=sep)
-    
+
     elif mode == "money_per_point":
-        print(f"Geld pro Punkt: {config.money_per_point:.2f} €")
+        print(start + f"Geld pro Punkt: {config.money_per_point:.2f} €")
+
+    # --- For AppConfig ---
+    elif mode == "app":
+        print(start + f"Pfad der App-Konfigurationsdatei: {config.app_config_path}")
+        print(f"Pfad der Noten-Datei: {config.data_path}")
+        print(f"Pfad der Wallet-Datei: {config.wallet_path}")
+        print(f"Pfad der Belohnungs-Konfigurationsdatei: {config.reward_config_path}")
+
+        status = "aktiviert" if config.verbose_loading else "deaktiviert"
+        print(f"Status der Ladehinweise: {status}")
 
     elif mode == "paths":
-        print(f"Pfad der App-Konfigurationsdatei: {config.app_config_path}")
+        print(start + f"Pfad der App-Konfigurationsdatei: {config.app_config_path}")
         print(f"Pfad der Noten-Datei: {config.data_path}")
         print(f"Pfad der Wallet-Datei: {config.wallet_path}")
         print(f"Pfad der Belohnungs-Konfigurationsdatei: {config.reward_config_path}")
 
     elif mode == "verbose_loading":
         status = "aktiviert" if config.verbose_loading else "deaktiviert"
-        print(f"Status der Ladehinweise: {status}")
+        print(start + f"Status der Ladehinweise: {status}")

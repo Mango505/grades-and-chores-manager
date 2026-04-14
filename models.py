@@ -1,4 +1,5 @@
 from datetime import datetime
+from enum import Enum
 DEFAULT_POINTS_MAP = {1: 10, 2: 8, 3: 6, 4: 4, 5: 2, 6: 0}  # default
 DEFAULT_MONEY_PER_POINT = 0.50                              # default
 
@@ -152,3 +153,9 @@ class AppConfig:
             reward_config_path=data["reward_config_path"],
             verbose_loading=data.get("verbose_loading", True)
         )
+
+
+class LoadStatus(Enum):
+    OK = "ok"
+    MISSING = "missing"
+    CORRUPT = "corrupt"
