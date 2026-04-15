@@ -1,6 +1,6 @@
 from datetime import datetime
 from enum import Enum
-DEFAULT_POINTS_MAP = {1: 10, 2: 8, 3: 6, 4: 4, 5: 2, 6: 0}  # default
+DEFAULT_POINTS_MAP = {1: 10, 2: 6, 3: 2, 4: 0, 5: 0, 6: 0}  # 5€ / 3€ / 1€ / 0 / 0 / 0 at default 0.50€/pt
 DEFAULT_MONEY_PER_POINT = 0.50                              # default
 
 class Grade:
@@ -92,9 +92,11 @@ class Wallet:
 class RewardConfig:
     def __init__(
         self,
+        enabled: bool = False,
         points_map: dict[int, int] = None,
         money_per_point: float = DEFAULT_MONEY_PER_POINT,
     ):
+        self.enabled = enabled
         self.points_map = points_map if points_map is not None else DEFAULT_POINTS_MAP.copy()
         self.money_per_point = money_per_point
 
@@ -108,6 +110,7 @@ class RewardConfig:
 
     def to_dict(self) -> dict:
         return {
+            "enabled": self.enabled,
             "points_map": {int(k): v for k, v in self.points_map.items()},
             "money_per_point": self.money_per_point,
         }
@@ -115,6 +118,7 @@ class RewardConfig:
     @classmethod
     def from_dict(cls, data: dict) -> "RewardConfig":
         return cls(
+            enabled=data.get("enabled", False),
             points_map={int(k): v for k, v in data["points_map"].items()},
             money_per_point=data["money_per_point"],
         )

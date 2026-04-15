@@ -74,19 +74,22 @@ def main():
 
     # --- Menu flow ---
     while True:
-        choice = print_menu({
-            "1": "Note hinzufügen",
-            "2": "Guthaben einlösen",
-            "3": "Notenübersicht",
-            "4": "Nach Tags filtern",
-            "5": "Kontoübersicht",
-            "6": "Fach erstellen",
-            "7": "Fach löschen",
-            "8": "Konfiguration anpassen",
-            "q": "Beenden"
-        },
-        "-" * 12 + " MENÜ " + "-" * 12,
-        start="\n"
+        menu = {"1": "Note hinzufügen"}
+        if reward_config.enabled:
+            menu["2"] = "Guthaben einlösen"
+        menu["3"] = "Notenübersicht"
+        menu["4"] = "Nach Tags filtern"
+        if reward_config.enabled:
+            menu["5"] = "Kontoübersicht"
+        menu["6"] = "Fach erstellen"
+        menu["7"] = "Fach löschen"
+        menu["8"] = "Konfiguration anpassen"
+        menu["q"] = "Beenden"
+
+        choice = print_menu(
+            menu,
+            "-" * 12 + " MENÜ " + "-" * 12,
+            start="\n"
         )
 
         if choice == "q":

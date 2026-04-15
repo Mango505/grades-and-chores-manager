@@ -50,11 +50,12 @@ def add_grade(subjects: list[Subject], config: RewardConfig, wallet: Wallet) -> 
                 choice.add_grade(grade)    # add the Grade to the desired subject
                 print(f"\nNeue Note zum Fach '{choice.name}' hinzugefügt.")
 
-                points = config.points_for_grade(value)
-                money = config.money_for_points(points)
-                print(f"Note {value}: {points} Punkte (+{money:.2f} €)")
-                wallet.balance += money
-                print(f"Aktueller Kontostand: {wallet.balance:.2f} €")
+                if config.enabled:
+                    points = config.points_for_grade(value)
+                    money = config.money_for_points(points)
+                    print(f"Note {value}: {points} Punkte (+{money:.2f} €)")
+                    wallet.balance += money
+                    print(f"Aktueller Kontostand: {wallet.balance:.2f} €")
 
                 return subjects, config, wallet
             print("Ungültige Eingabe. Note muss zwischen 1 und 6 liegen und Gewichtung muss höher als 0 sein.")
@@ -300,13 +301,27 @@ def edit_config(app_config: AppConfig, reward_config: RewardConfig) -> tuple[App
 def configure_rewards(config: RewardConfig) -> RewardConfig:
     print_subtitle("Belohnungskonfiguration anpassen", 2, "-")
 
-    # Print current configuration
+    # System disabled: only offer to enable it
+    if not config.enabled:
+        status_label = "deaktiviert"
+        print(f"Belohnungssystem: {status_label}")
+        choice = print_menu({
+            "1": "Belohnungssystem aktivieren",
+            "z": "Zurück"
+        }, start="\n")
+        if choice == "1":
+            config.enabled = True
+            print("Belohnungssystem aktiviert.")
+        return config
+
+    # System enabled: show full config and all options
     print_subtitle("Aktuelle Konfiguration", 3, "=")
     print_configuration("reward", config)
 
     choice = print_menu({
         "1": "Punkte pro Note",
         "2": "Geld pro Punkt",
+        "3": "Belohnungssystem deaktivieren",
         "z": "Zurück"
     },
     "Was möchtest du ändern?",
@@ -357,6 +372,21 @@ def configure_rewards(config: RewardConfig) -> RewardConfig:
             except ValueError:
                 print("Ungültige Eingabe. Bitte eine Zahl eingeben.")
 
+    elif choice == "3":
+        confirm = input("Bist du sicher dass du das Belohnungssystem deaktivieren möchtest? 'J' zum Fortfahren: ").strip().lower()
+        if confirm == "j":
+            config.enabled = False
+            print("Belohnungssystem deaktiviert.")
+        else:
+            print("Vorgang abgebrochen.")
+        return config
+
+
+def _is_valid_path(path: str) -> bool:
+    """Check that a path contains no null bytes or Windows-illegal characters."""
+    invalid_chars = set('\0<>"|?*')
+    return bool(path) and not any(c in invalid_chars for c in path)
+
 
 def configure_paths(config: AppConfig) -> AppConfig:
     print_subtitle("Standard-Pfade anpassen", 2, "-")
@@ -380,35 +410,35 @@ def configure_paths(config: AppConfig) -> AppConfig:
 
         elif choice == "1":
             new = input(f"Neuen Pfad für die App-Konfigurationsdatei eingeben (Aktuell: {config.app_config_path})" + "\n> ").strip()
-            if new:
-                confirm = input(f"Bist du sicher dass du den Pfad der App-Konfigurationsdatei zu {new} ändern möchtest? 'J' zum Fortfahren: ").strip().lower()
-                if confirm == "j": config.app_config_path = new; print("Änderungen übernommen."); return config
-                else: print("Vorgang abgebrochen."); return config
-            else: print("Pfad darf nicht leer sein."); continue
-        
+            if not new: continue
+            if not _is_valid_path(new): print("Ungültiger Pfad. Bitte keine Sonderzeichen wie < > \" | ? * verwenden."); continue
+            confirm = input(f"Bist du sicher dass du den Pfad der App-Konfigurationsdatei zu '{new}' ändern möchtest? 'J' zum Fortfahren: ").strip().lower()
+            if confirm == "j": config.app_config_path = new; print("Änderungen übernommen."); return config
+            else: print("Vorgang abgebrochen."); return config
+
         elif choice == "2":
             new = input(f"Neuen Pfad für die Noten-Datei eingeben (Aktuell: {config.data_path})" + "\n> ").strip()
-            if new:
-                confirm = input(f"Bist du sicher dass du den Pfad der Noten-Datei zu {new} ändern möchtest? 'J' zum Fortfahren: ").strip().lower()
-                if confirm == "j": config.data_path = new; print("Änderungen übernommen."); return config
-                else: print("Vorgang abgebrochen."); return config
-            else: print("Pfad darf nicht leer sein."); continue
-        
+            if not new: continue
+            if not _is_valid_path(new): print("Ungültiger Pfad. Bitte keine Sonderzeichen wie < > \" | ? * verwenden."); continue
+            confirm = input(f"Bist du sicher dass du den Pfad der Noten-Datei zu '{new}' ändern möchtest? 'J' zum Fortfahren: ").strip().lower()
+            if confirm == "j": config.data_path = new; print("Änderungen übernommen."); return config
+            else: print("Vorgang abgebrochen."); return config
+
         elif choice == "3":
             new = input(f"Neuen Pfad für die Wallet-Datei eingeben (Aktuell: {config.wallet_path})" + "\n> ").strip()
-            if new:
-                confirm = input(f"Bist du sicher dass du den Pfad der Wallet-Datei zu {new} ändern möchtest? 'J' zum Fortfahren: ").strip().lower()
-                if confirm == "j": config.wallet_path = new; print("Änderungen übernommen."); return config
-                else: print("Vorgang abgebrochen."); return config
-            else: print("Pfad darf nicht leer sein."); continue
-        
+            if not new: continue
+            if not _is_valid_path(new): print("Ungültiger Pfad. Bitte keine Sonderzeichen wie < > \" | ? * verwenden."); continue
+            confirm = input(f"Bist du sicher dass du den Pfad der Wallet-Datei zu '{new}' ändern möchtest? 'J' zum Fortfahren: ").strip().lower()
+            if confirm == "j": config.wallet_path = new; print("Änderungen übernommen."); return config
+            else: print("Vorgang abgebrochen."); return config
+
         elif choice == "4":
             new = input(f"Neuen Pfad für die Belohnungs-Konfigurationsdatei eingeben (Aktuell: {config.reward_config_path})" + "\n> ").strip()
-            if new:
-                confirm = input(f"Bist du sicher dass du den Pfad der Belohnungs-Konfigurationsdatei zu {new} ändern möchtest? 'J' zum Fortfahren: ").strip().lower()
-                if confirm == "j": config.reward_config_path = new; print("Änderungen übernommen."); return config
-                else: print("Vorgang abgebrochen."); return config
-            else: print("Pfad darf nicht leer sein."); continue
+            if not new: continue
+            if not _is_valid_path(new): print("Ungültiger Pfad. Bitte keine Sonderzeichen wie < > \" | ? * verwenden."); continue
+            confirm = input(f"Bist du sicher dass du den Pfad der Belohnungs-Konfigurationsdatei zu '{new}' ändern möchtest? 'J' zum Fortfahren: ").strip().lower()
+            if confirm == "j": config.reward_config_path = new; print("Änderungen übernommen."); return config
+            else: print("Vorgang abgebrochen."); return config
 
 
 def configure_loading(config: AppConfig) -> AppConfig:
@@ -510,7 +540,9 @@ def print_configuration(mode: str, config: AppConfig | RewardConfig, start: str 
 
     # --- For RewardConfig ---
     if mode == "reward":
-        print(start + f"Geld pro Punkt: {config.money_per_point:.2f} €")
+        status = "aktiviert" if config.enabled else "deaktiviert"
+        print(start + f"Belohnungssystem: {status}")
+        print(f"Geld pro Punkt: {config.money_per_point:.2f} €")
 
         print("Punkte pro Note:")
         items = list(config.points_map.items())
