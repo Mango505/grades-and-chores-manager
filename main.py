@@ -1,5 +1,5 @@
 import argparse
-from ui import print_menu, print_title, add_grade, redeem, show_overview, filter_by_tag, show_balance, create_subject, delete_subject, edit_config
+from ui import print_menu, print_title, confirm, add_grade, redeem, show_overview, filter_by_tag, show_balance, create_subject, delete_subject, edit_config
 from storage import save_app_config, load_app_config, save_subjects, load_subjects, save_wallet, load_wallet, save_reward_config, load_reward_config, APPCONFIG_PATH, DATA_PATH, WALLET_PATH, REWARDCONFIG_PATH
 from models import LoadStatus
 
@@ -84,7 +84,8 @@ def main():
         menu["6"] = "Fach erstellen"
         menu["7"] = "Fach löschen"
         menu["8"] = "Konfiguration anpassen"
-        menu["q"] = "Beenden"
+        menu["q"] = "Speichern & Beenden"
+        menu["x"] = "Beenden ohne Speichern"
 
         choice = print_menu(
             menu,
@@ -98,6 +99,9 @@ def main():
             save_wallet(wallet, args.wallet)
             save_reward_config(reward_config, args.reward_config)
             break
+        elif choice == "x":
+            if confirm("Bist du sicher dass du NICHT speichern willst?"):
+                break
         elif choice == "1":
             add_grade(subjects, reward_config, wallet)
         elif choice == "2":
