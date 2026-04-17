@@ -47,17 +47,21 @@ def add_grade(subjects: list[Subject], config: RewardConfig, wallet: Wallet) -> 
             grade = Grade(value, weight, tags)   # create Grade object from user inputs
 
             if grade.is_valid():
-                choice.add_grade(grade)    # add the Grade to the desired subject
-                print(f"\nNeue Note zum Fach '{choice.name}' hinzugefügt.")
+                print(f"Vorschau: Note {value} | Gewichtung: {weight} | Tags: {raw_tags}")
+                if confirm("Ist das korrekt?"):
+                    choice.add_grade(grade)    # add the Grade to the desired subject
+                    print(f"\nNeue Note zum Fach '{choice.name}' hinzugefügt.")
 
-                if config.enabled:
-                    points = config.points_for_grade(value)
-                    money = config.money_for_points(points)
-                    print(f"Note {value}: {points} Punkte (+{money:.2f} €)")
-                    wallet.balance += money
-                    print(f"Aktueller Kontostand: {wallet.balance:.2f} €")
+                    if config.enabled:
+                        points = config.points_for_grade(value)
+                        money = config.money_for_points(points)
+                        print(f"Note {value}: {points} Punkte (+{money:.2f} €)")
+                        wallet.balance += money
+                        print(f"Aktueller Kontostand: {wallet.balance:.2f} €")
 
-                return subjects, config, wallet
+                    return subjects, config, wallet
+                
+                else: print("Vorgang abgebrochen."); continue
             print("Ungültige Eingabe. Note muss zwischen 1 und 6 liegen und Gewichtung muss höher als 0 sein.")
 
         except ValueError:
