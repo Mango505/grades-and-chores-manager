@@ -48,11 +48,13 @@ def add_grade(subjects: list[Subject], config: RewardConfig, wallet: Wallet) -> 
 
             if grade.is_valid():
                 print(f"Vorschau: Note {value} | Gewichtung: {weight} | Tags: {raw_tags}")
-                if confirm("Ist das korrekt?"):
+
+                c = confirm("Ist das korrekt?")
+                if c is True:
                     choice.add_grade(grade)    # add the Grade to the desired subject
                     print(f"\nNeue Note zum Fach '{choice.name}' hinzugefügt.")
 
-                    if config.enabled:
+                    if config.enabled:  # show earnings if rewards are enabled
                         points = config.points_for_grade(value)
                         money = config.money_for_points(points)
                         print(f"Note {value}: {points} Punkte (+{money:.2f} €)")
@@ -60,8 +62,11 @@ def add_grade(subjects: list[Subject], config: RewardConfig, wallet: Wallet) -> 
                         print(f"Aktueller Kontostand: {wallet.balance:.2f} €")
 
                     return subjects, config, wallet
-                
-                else: print("Vorgang abgebrochen."); continue
+                elif c is False: 
+                    print("Vorgang abgebrochen.")
+                    return subjects, config, wallet
+                continue
+
             print("Ungültige Eingabe. Note muss zwischen 1 und 6 liegen und Gewichtung muss höher als 0 sein.")
 
         except ValueError:
@@ -92,12 +97,16 @@ def redeem(wallet: Wallet) -> Wallet:
             date = datetime.now().strftime("%d.%m.%Y %H:%M")
             print("Vorschau:")
             print(f"{desc} | -{cost:.2f} € | {date}")
-            if confirm("Ist das korrekt?"):
+
+            c = confirm("Ist das korrekt?")
+            if c is True:
                 wallet.redeem(cost, description if description else "<keine Beschreibung>")
                 print(f"Guthaben erfolgreich eingelöst. Neuer Kontostand: {wallet.balance:.2f} €")
                 return wallet
-            print("Vorgang abgebrochen.")
-            break
+            elif c is False:
+                print("Vorgang abgebrochen.")
+                return wallet
+            return wallet
         
         except ValueError:
             print("Ungültige Eingabe. Bitte eine Zahl eingeben.")
@@ -200,7 +209,7 @@ def show_balance(config: RewardConfig, wallet: Wallet) -> tuple[RewardConfig, Wa
                 "2": "Alle Einlösungen anzeigen",
                 "z": "Zurück zum Menü"
             },
-            "Was möchtest du tun?",
+            "Mehr anzeigen?",
             start="\n"
             )
             if more == "z": break
@@ -214,12 +223,13 @@ def show_balance(config: RewardConfig, wallet: Wallet) -> tuple[RewardConfig, Wa
 
             elif more == "2":
                 if len(wallet.redemptions) > 15:   # ask before showing long list
-                    if not confirm(f"Sollen alle {len(wallet.redemptions)} Einträge angezeigt werden?"): continue
-                for r in wallet.redemptions:    # show all, including previously shown
-                    desc = r["description"]
-                    cost = r["cost"]
-                    date = r.get("date", "<unbekanntes Datum>")
-                    print(f"{desc} | -{cost:.2f} € | {date}")
+                    c = confirm(f"Sollen alle {len(wallet.redemptions)} Einträge angezeigt werden?")
+                    if c is True:
+                        for r in wallet.redemptions:    # show all, including previously shown
+                            desc = r["description"]
+                            cost = r["cost"]
+                            date = r.get("date", "<unbekanntes Datum>")
+                            print(f"{desc} | -{cost:.2f} € | {date}")
 
     return config, wallet
 
@@ -264,11 +274,14 @@ def delete_subject(subjects: list[Subject]) -> list[Subject]:
             choice = int(choice)
             choice = subjects[choice]
 
-            if confirm(f"Bist du sicher dass du '{choice.name}' entfernen möchtest? ", "'J' zum Bestätigen: "):
+            c = confirm(f"Bist du sicher dass du '{choice.name}' entfernen möchtest?")
+            if c is True:
                 subjects.remove(choice)
                 print("Fach entfernt.")
                 return subjects
-            print("Vorgang abgebrochen.")
+            elif c is False:
+                print("Vorgang abgebrochen.")
+                return subjects
 
         except ValueError:
             print("Ungültige Eingabe. Bitte eine Zahl eingeben.")
@@ -316,71 +329,74 @@ def configure_rewards(config: RewardConfig) -> RewardConfig:
         return config
 
     # System enabled: show full config and all options
-    print_subtitle("Aktuelle Konfiguration", 3, "=")
-    print_configuration("reward", config)
+    while True:
+        print_subtitle("Aktuelle Konfiguration", 3, "=")
+        print_configuration("reward", config)
 
-    choice = print_menu({
-        "1": "Punkte pro Note",
-        "2": "Geld pro Punkt",
-        "3": "Belohnungssystem deaktivieren",
-        "z": "Zurück"
-    },
-    "Was möchtest du ändern?",
-    start="\n"
-    )
+        choice = print_menu({
+            "1": "Punkte pro Note",
+            "2": "Geld pro Punkt",
+            "3": "Belohnungssystem deaktivieren",
+            "z": "Zurück"
+        },
+        "Was möchtest du ändern?",
+        start="\n"
+        )
 
-    if choice == "z":
-        return config
+        if choice == "z":
+            return config
 
-    elif choice == "1":
-        print_subtitle("Punkte pro Note ändern", 4, "-")
-        new_config = copy.deepcopy(config)   # create a copy of the current config to edit, so changes are not applied until confirmation
+        elif choice == "1":
+            print_subtitle("Punkte pro Note ändern", 4, "-")
+            new_config = copy.deepcopy(config)   # create a copy of the current config to edit, so changes are not applied until confirmation
 
-        for g, p in new_config.points_map.items():
+            for g, p in new_config.points_map.items():
+                while True:
+                    try:
+                        new = input(f"Neuen Punktewert für Note {g} eingeben oder Leerlassen zum Beibehalten (Aktuell {p} Punkte)" + "\n> ").strip()
+                        if new:
+                            new = int(new)
+                            new_config.points_map[g] = new
+                            break
+                        else:
+                            break
+                    except ValueError:
+                        print("Ungültige Eingabe. Bitte eine Ganzzahl eingeben.\n")
+
+            # Print new configuration
+            print()
+            print_subtitle("Neue Konfiguration", 3, "=")
+            print_configuration("points_map", new_config)
+
+            c = confirm("Bist du sicher dass du diese Änderungen übernehmen möchtest?")
+            if c is True: print("Änderungen übernommen."); return new_config
+            elif c is False: print("Vorgang abgebrochen."); return config
+
+        elif choice == "2":
+            money = config.money_per_point
+
             while True:
                 try:
-                    new = input(f"Neuen Punktewert für Note {g} eingeben oder Leerlassen zum Beibehalten (Aktuell {p} Punkte)" + "\n> ").strip()
-                    if new:
-                        new = int(new)
-                        new_config.points_map[g] = new
-                        break
-                    else:
-                        break
+                    raw = input(f"Neuen Geldwert pro Punkt eingeben oder leerlassen zum Beibehalten (Aktuell {money:.2f} € pro Punkt)" + "\n> ").strip()
+                    new_money = float(raw)
+
+                    c = confirm(f"Bist du sicher dass du den Geldwert pro Punkt zu {new_money:.2f} € ändern möchtest?")
+                    if c is True:
+                        config.money_per_point = new_money
+                        print("Änderungen übernommen.")
+                        return config
+                    elif c is False: print("Vorgang abgebrochen."); return config
+
                 except ValueError:
-                    print("Ungültige Eingabe. Bitte eine Ganzzahl eingeben.\n")
+                    print("Ungültige Eingabe. Bitte eine Zahl eingeben.")
 
-        # Print new configuration
-        print()
-        print_subtitle("Neue Konfiguration", 3, "=")
-        print_configuration("points_map", new_config)
-
-        if confirm("Bist du sicher dass du diese Änderungen übernehmen möchtest?"): print("Änderungen übernommen."); return new_config
-        else: print("Vorgang abgebrochen."); return config
-
-    elif choice == "2":
-        money = config.money_per_point
-
-        while True:
-            try:
-                raw = input(f"Neuen Geldwert pro Punkt eingeben oder leerlassen zum Beibehalten (Aktuell {money:.2f} € pro Punkt)" + "\n> ").strip()
-                new_money = float(raw)
-
-                if confirm(f"Bist du sicher dass du den Geldwert pro Punkt zu {new_money:.2f} € ändern möchtest?"):
-                    config.money_per_point = new_money
-                    print("Änderungen übernommen.")
-                    return config
-                else: print("Vorgang abgebrochen."); return config
-
-            except ValueError:
-                print("Ungültige Eingabe. Bitte eine Zahl eingeben.")
-
-    elif choice == "3":
-        if confirm("Bist du sicher dass du das Belohnungssystem deaktivieren möchtest?"):
-            config.enabled = False
-            print("Belohnungssystem deaktiviert.")
-        else:
-            print("Vorgang abgebrochen.")
-        return config
+        elif choice == "3":
+            c = confirm("Bist du sicher dass du das Belohnungssystem deaktivieren möchtest?")
+            if c is True:
+                config.enabled = False
+                print("Belohnungssystem deaktiviert.")
+            elif c is False:
+                print("Vorgang abgebrochen.")
 
 
 def _is_valid_path(path: str) -> bool:
@@ -413,41 +429,49 @@ def configure_paths(config: AppConfig) -> AppConfig:
             new = input(f"Neuen Pfad für die App-Konfigurationsdatei eingeben (Aktuell: {config.app_config_path})" + "\n> ").strip()
             if not new: continue
             if not _is_valid_path(new): print("Ungültiger Pfad. Bitte keine Sonderzeichen wie < > \" | ? * verwenden."); continue
-            if confirm(f"Bist du sicher dass du den Pfad der App-Konfigurationsdatei zu '{new}' ändern möchtest?"):
+
+            c = confirm(f"Bist du sicher dass du den Pfad der App-Konfigurationsdatei zu '{new}' ändern möchtest?")
+            if c is True:
                 config.app_config_path = new
                 print("Änderungen übernommen.")
                 return config
-            else: print("Vorgang abgebrochen."); return config
+            elif c is False: print("Vorgang abgebrochen."); return config
 
         elif choice == "2":
             new = input(f"Neuen Pfad für die Noten-Datei eingeben (Aktuell: {config.data_path})" + "\n> ").strip()
             if not new: continue
             if not _is_valid_path(new): print("Ungültiger Pfad. Bitte keine Sonderzeichen wie < > \" | ? * verwenden."); continue
-            if confirm(f"Bist du sicher dass du den Pfad der Noten-Datei zu '{new}' ändern möchtest?"):
+
+            c = confirm(f"Bist du sicher dass du den Pfad der Noten-Datei zu '{new}' ändern möchtest?")
+            if c is True:
                 config.data_path = new
                 print("Änderungen übernommen.")
                 return config
-            else: print("Vorgang abgebrochen."); return config
+            elif c is False: print("Vorgang abgebrochen."); return config
 
         elif choice == "3":
             new = input(f"Neuen Pfad für die Wallet-Datei eingeben (Aktuell: {config.wallet_path})" + "\n> ").strip()
             if not new: continue
             if not _is_valid_path(new): print("Ungültiger Pfad. Bitte keine Sonderzeichen wie < > \" | ? * verwenden."); continue
-            if confirm(f"Bist du sicher dass du den Pfad der Wallet-Datei zu '{new}' ändern möchtest?"):
+            
+            c = confirm(f"Bist du sicher dass du den Pfad der Wallet-Datei zu '{new}' ändern möchtest?")
+            if c is True:
                 config.wallet_path = new
                 print("Änderungen übernommen.")
                 return config
-            else: print("Vorgang abgebrochen."); return config
+            elif c is False: print("Vorgang abgebrochen."); return config
 
         elif choice == "4":
             new = input(f"Neuen Pfad für die Belohnungs-Konfigurationsdatei eingeben (Aktuell: {config.reward_config_path})" + "\n> ").strip()
             if not new: continue
             if not _is_valid_path(new): print("Ungültiger Pfad. Bitte keine Sonderzeichen wie < > \" | ? * verwenden."); continue
-            if confirm(f"Bist du sicher dass du den Pfad der Belohnungs-Konfigurationsdatei zu '{new}' ändern möchtest?"):
+            
+            c = confirm(f"Bist du sicher dass du den Pfad der Belohnungs-Konfigurationsdatei zu '{new}' ändern möchtest?")
+            if c is True:
                 config.reward_config_path = new
                 print("Änderungen übernommen.")
                 return config
-            else: print("Vorgang abgebrochen."); return config
+            elif c is False: print("Vorgang abgebrochen."); return config
 
 
 def configure_loading(config: AppConfig) -> AppConfig:
@@ -481,11 +505,16 @@ def print_subjects(subjects: list[Subject], additional: str = "") -> str:
     return choice
 
 
-def confirm(message: str, prompt: str = " 'J' zum Fortfahren: ") -> bool:
-    choice = input(message + prompt).strip().lower()
-    if choice in ["ja", "j"]:
-        return True
-    return False
+def confirm(message: str, prompt: str = " 'J'/'N'/'Z': ") -> bool | None:
+    while True:
+        choice = input(message + prompt).strip().lower()
+        if choice in ["ja", "j"]:
+            return True
+        if choice in ["nein", "n"]:
+            return False
+        if choice in ["zurück", "z"]:
+            return None    # caller should treat as "back"
+        print("Ungültige Eingabe.")
 
 
 def print_title(title: str): 
