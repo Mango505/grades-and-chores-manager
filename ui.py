@@ -13,14 +13,14 @@ def add_grade(subjects: list[Subject], config: RewardConfig, wallet: Wallet) -> 
 
     while True:
         try:
-            if not first: print()
-            first = False
-
             # Choose subject
             choice = print_subjects(
                 subjects,
-                ", zu dem die Note hinzugefügt werden soll"
+                ", zu dem die Note hinzugefügt werden soll",
+                start="\n" if not first else None
             ).strip().lower()
+            first = False
+
             if choice == "z":
                 print("Vorgang abgebrochen.")
                 return subjects, config, wallet
@@ -78,7 +78,7 @@ def add_grade(subjects: list[Subject], config: RewardConfig, wallet: Wallet) -> 
 
 def redeem(wallet: Wallet) -> Wallet:
     print_subtitle("Guthaben einlösen")
-    
+
     while True:
         try:
             cost = input("Betrag eingeben, der vom Konto abgezogen werden soll: ").strip()
@@ -92,13 +92,12 @@ def redeem(wallet: Wallet) -> Wallet:
 
             description = input("Beschreibung hinzufügen oder leerlassen: ").strip()
 
-            print()
             desc = description if description else '<keine Beschreibung>'
             date = datetime.now().strftime("%d.%m.%Y %H:%M")
-            print("Vorschau:")
+            print("\nVorschau:")
             print(f"{desc} | -{cost:.2f} € | {date}")
 
-            c = confirm("Ist das korrekt?")
+            c = confirm("\nIst das korrekt?")
             if c is True:
                 wallet.redeem(cost, description if description else "<keine Beschreibung>")
                 print(f"Guthaben erfolgreich eingelöst. Neuer Kontostand: {wallet.balance:.2f} €")
@@ -107,7 +106,7 @@ def redeem(wallet: Wallet) -> Wallet:
                 print("Vorgang abgebrochen.")
                 return wallet
             continue
-        
+
         except ValueError:
             print("Ungültige Eingabe. Bitte eine Zahl eingeben.")
 
@@ -117,7 +116,7 @@ def show_overview(subjects: list[Subject]) -> list[Subject]:
     if not subjects:
         print("Keine Fächer vorhanden.")
         return subjects
-    
+
     total_value = 0.0
     total_weight = 0.0
 
@@ -135,10 +134,10 @@ def show_overview(subjects: list[Subject]) -> list[Subject]:
             total_value += grade.value * grade.weight
             total_weight += grade.weight
 
-        if i < len(subjects) - 1: print()   # not the last subject
+        print()
 
     overall = f"{total_value / total_weight:.2f}" if total_weight > 0 else "N/A"
-    print(f"\nGesamtdurchschnitt: {overall}")
+    print(f"Gesamtdurchschnitt: {overall}")
 
 
 def filter_by_tag(subjects: list[Subject]) -> list[Subject]:
@@ -146,7 +145,7 @@ def filter_by_tag(subjects: list[Subject]) -> list[Subject]:
     if not subjects:
         print("Keine Fächer vorhanden.")
         return subjects
-    
+
     choice = print_menu({
         "1": "Es müssen alle Tags übereinstimmen",
         "2": "Es muss mindestens ein Tag übereinstimmen"
@@ -181,7 +180,7 @@ def filter_by_tag(subjects: list[Subject]) -> list[Subject]:
             total_weight += grade.weight
 
     if not found:
-        print(f"Keine Einträge mit Tag '{tags}' gefunden.")
+        print(f"Keine Einträge mit Tag '{raw_tags}' gefunden.")
         return subjects
 
     print(f"\nGesamtdurchschnitt für '{raw_tags}': {total_value / total_weight:.2f}")
@@ -237,14 +236,12 @@ def show_balance(config: RewardConfig, wallet: Wallet) -> tuple[RewardConfig, Wa
 def create_subject(subjects: list[Subject]) -> list[Subject]:
     first = True
     print_subtitle("Fach erstellen")
-    
-    while True:
-        if not first: print()
-        first = False
 
-        raw = input("Name für neues Fach eingeben: ").strip()
+    while True:
+        raw = input("\nName für neues Fach eingeben: " if not first else "Name für neues Fach eingeben: ").strip()
+        first = False
         if not raw: print("Name darf nicht leer sein."); continue
-        
+
         if raw not in [s.name for s in subjects]:
             subjects.append(Subject(raw))
             print(f"'{raw}' wurde als neues Fach hinzugefügt.")
@@ -261,13 +258,13 @@ def delete_subject(subjects: list[Subject]) -> list[Subject]:
 
     while True:
         try:
-            if not first: print()
-            first = False
-
             choice = print_subjects(
                 subjects,
                 ", welches entfernt werden soll",
+                start="\n" if not first else None
             ).strip().lower()
+            first = False
+
             if choice == "z":
                 print("Vorgang abgebrochen.")
                 return subjects
@@ -329,8 +326,10 @@ def configure_rewards(config: RewardConfig) -> RewardConfig:
         return config
 
     # System enabled: show full config and all options
+    first = True
     while True:
-        print_subtitle("Aktuelle Konfiguration", 3, "=")
+        print_subtitle("Aktuelle Konfiguration", 3, "=", start="\n" if not first else None)
+        first = False
         print_configuration("reward", config)
 
         choice = print_menu({
@@ -364,7 +363,6 @@ def configure_rewards(config: RewardConfig) -> RewardConfig:
                         print("Ungültige Eingabe. Bitte eine Ganzzahl eingeben.\n")
 
             # Print new configuration
-            print()
             print_subtitle("Neue Konfiguration", 3, "=")
             print_configuration("points_map", new_config)
 
@@ -408,7 +406,7 @@ def _is_valid_path(path: str) -> bool:
 
 def configure_paths(config: AppConfig) -> AppConfig:
     print_subtitle("Standard-Pfade anpassen", 2, "-")
-    print_subtitle("Aktuelle Konfiguration", 3, "=")
+    print_subtitle("Aktuelle Konfiguration", 3, "=", start=None)
     print_configuration("paths", config)
 
     while True:
@@ -483,9 +481,7 @@ def configure_loading(config: AppConfig) -> AppConfig:
     choice = print_menu({
         "1": f"Ladehinweise {action}",
         "z": "Zurück"
-    },
-    "Was möchtest du tun?"
-    )
+    })
 
     if choice == "z":
         return config
@@ -497,12 +493,12 @@ def configure_loading(config: AppConfig) -> AppConfig:
 
 # --- Templates ---
 
-def print_subjects(subjects: list[Subject], additional: str = "") -> str:
+def print_subjects(subjects: list[Subject], additional: str = "", start: str | None = None) -> str:
     """Shows the user a list with indexes of existing subjects to select from"""
-    
+
     options = {str(i): s.name for i, s in enumerate(subjects)}  # convert list to dict: {index: name}
     options["z"] = "Zurück"
-    choice = print_menu(options, "Fach auswählen" + additional + ":")
+    choice = print_menu(options, "Fach auswählen" + additional + ":", start=start)
     return choice
 
 
@@ -528,28 +524,30 @@ def print_title(title: str):
     print(border)
 
 
-def print_subtitle(title: str, size: int = 1, symbol: str = "=", width = 30, min_symbols = 3):
+def print_subtitle(title: str, size: int = 1, symbol: str = "=", start: str | None = "\n", width = 30, min_symbols = 3):
     """
-        Prints a subtitle, e.g. print_subtitle("subtitle"). A bigger size value means smaller subtitle, so smallest size is 4, biggest is 1. min_symbols only needed for sizes 3 and 4.
+        Prints a subtitle, e.g. print_subtitle("subtitle"). A bigger size value means smaller subtitle, so smallest size is 4, biggest is 1.
+        \nmin_symbols only needed for sizes 3 and 4.
     """
+    start = start if start else ""
 
     if size == 1:
-        print("\n" + title.upper())
+        print(start + title.upper())
         print(symbol * width)
     
     elif size == 2:
-        print("\n" + title)
+        print(start + title)
         print(symbol * width)
     
     elif size == 3:
         text = f" {title.upper()} "
         width = max(width, len(text) + min_symbols * 2)
-        print(text.center(width, symbol))
+        print(start + text.center(width, symbol))
     
     elif size == 4:
         text = f" {title} "
         width = max(width, len(text) + min_symbols * 2)
-        print(text.center(width, symbol))
+        print(start + text.center(width, symbol))
 
 
 def print_menu(options: dict, title="", prompt="> ", start: str | None = None) -> str:
