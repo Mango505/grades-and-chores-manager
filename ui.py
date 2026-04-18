@@ -106,7 +106,7 @@ def redeem(wallet: Wallet) -> Wallet:
             elif c is False:
                 print("Vorgang abgebrochen.")
                 return wallet
-            return wallet
+            continue
         
         except ValueError:
             print("Ungültige Eingabe. Bitte eine Zahl eingeben.")
@@ -386,6 +386,7 @@ def configure_rewards(config: RewardConfig) -> RewardConfig:
                         print("Änderungen übernommen.")
                         return config
                     elif c is False: print("Vorgang abgebrochen."); return config
+                    elif c is None: break
 
                 except ValueError:
                     print("Ungültige Eingabe. Bitte eine Zahl eingeben.")
