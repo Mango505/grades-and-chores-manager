@@ -286,6 +286,7 @@ def delete_subject(subjects: list[Subject]) -> list[Subject]:
 
 def edit_config(app_config: AppConfig, reward_config: RewardConfig) -> tuple[AppConfig, RewardConfig]:
     print_subtitle("Konfiguration anpassen")
+    first = True
 
     while True:
         choice = print_menu({
@@ -294,18 +295,20 @@ def edit_config(app_config: AppConfig, reward_config: RewardConfig) -> tuple[App
             "3": "Standard-Pfade anpassen",
             "4": "Ladehinweise anpassen",
             "z": "Zurück"
-        })
+        },
+        start="\n" if not first else None)
+        first = False
 
         if choice == "z":
             return app_config, reward_config
         elif choice == "1":
-            print_configuration("app", app_config)
+            print_configuration("app", app_config, start="\n")
         elif choice == "2":
-            return app_config, configure_rewards(reward_config)
+            reward_config = configure_rewards(reward_config)
         elif choice == "3":
-            return configure_paths(app_config), reward_config
+            app_config = configure_paths(app_config)
         elif choice == "4":
-            return configure_loading(app_config), reward_config
+            app_config = configure_loading(app_config)
 
 # --- Configuration editing functions ---
 
@@ -491,7 +494,7 @@ def configure_loading(config: AppConfig) -> AppConfig:
         print(f"Ladehinweise wurden {status}.")
         return config
 
-# --- Templates ---
+# --- Helpers ---
 
 def print_subjects(subjects: list[Subject], additional: str = "", start: str | None = None) -> str:
     """Shows the user a list with indexes of existing subjects to select from"""
@@ -560,9 +563,8 @@ def print_menu(options: dict, title="", prompt="> ", start: str | None = None) -
         if not first and not start: print()
         first = False
 
-        if title:
-            if start: print(start + title)
-            else: print(title)
+        if start: print(start, end="")
+        if title: print(title)
         
         for key, label in options.items():
             print(f"[{key}] {label}")
