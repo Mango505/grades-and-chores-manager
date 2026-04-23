@@ -78,6 +78,9 @@ def add_grade(subjects: list[Subject], config: RewardConfig, wallet: Wallet) -> 
 
 def redeem(wallet: Wallet) -> Wallet:
     print_subtitle("Guthaben einlösen")
+    if wallet.balance < 0.50:
+        print("Guthaben zu klein.")
+        return wallet
 
     while True:
         try:
@@ -202,33 +205,15 @@ def show_balance(config: RewardConfig, wallet: Wallet) -> tuple[RewardConfig, Wa
             date = r.get("date", "<unbekanntes Datum>")
             print(f"{desc} | -{cost:.2f} € | {date}")
 
-        while True:
-            more = print_menu({
-                "1": "Fünf weitere Einlösungen anzeigen",
-                "2": "Alle Einlösungen anzeigen",
-                "z": "Zurück zum Menü"
-            },
-            "Mehr anzeigen?",
-            start="\n"
-            )
-            if more == "z": break
-
-            elif more == "1":
-                for r in wallet.redemptions[-10:-5][::-1]:  # show 5 more redemptions
+        length = len(wallet.redemptions)
+        if length > 5: 
+            c = confirm(f"\nSollen alle {length} Einträge angezeigt werden?")
+            if c is True:
+                for r in wallet.redemptions:    # show all, including previously shown
                     desc = r["description"]
                     cost = r["cost"]
                     date = r.get("date", "<unbekanntes Datum>")
                     print(f"{desc} | -{cost:.2f} € | {date}")
-
-            elif more == "2":
-                if len(wallet.redemptions) > 15:   # ask before showing long list
-                    c = confirm(f"Sollen alle {len(wallet.redemptions)} Einträge angezeigt werden?")
-                    if c is True:
-                        for r in wallet.redemptions:    # show all, including previously shown
-                            desc = r["description"]
-                            cost = r["cost"]
-                            date = r.get("date", "<unbekanntes Datum>")
-                            print(f"{desc} | -{cost:.2f} € | {date}")
 
     return config, wallet
 
