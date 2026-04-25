@@ -4,7 +4,7 @@ import copy
 
 # --- Basic functions ---
 
-def add_grade(subjects: list[Subject], config: RewardConfig, wallet: Wallet) -> tuple[list[Subject], RewardConfig]:
+def add_grade(subjects: list[Subject], config: RewardConfig, wallet: Wallet) -> tuple[list[Subject], RewardConfig, Wallet]:
     print_subtitle("Note hinzufügen")
     if not subjects:
         print("Keine Fächer vorhanden.")
@@ -74,6 +74,77 @@ def add_grade(subjects: list[Subject], config: RewardConfig, wallet: Wallet) -> 
         except EOFError:
             print("EOFError")
             return subjects, config, wallet
+
+
+def edit_grade(subjects: list[Subject]) -> list[Subject]:
+    print_subtitle("Note bearbeiten")
+    if not subjects:
+        print("Keine Fächer vorhanden.")
+        return subjects
+    first = True
+
+    while True:
+        # Choose subject
+        choice = print_subjects(
+            subjects,
+            ", dessen Note bearbeitet werden soll",
+            start="\n" if not first else None
+        ).strip().lower()
+        first = False
+
+        if choice == "z":
+            print("Vorgang abgebrochen.")
+            return subjects
+        
+        subject = subjects[int(choice)]
+        if not subject.grades:
+            print(f"'{subject.name}' enthält keine Noten.")
+            continue
+
+        # Choose grade
+        grade_options = {
+            str(i): f"{g.value} | {g.weight:.1f} | {', '.join(g.tags)}"
+            for i, g in enumerate(subject.grades)
+        }
+        grade_options["z"] = "Zurück"
+        grade_choice = print_menu(grade_options, "Note auswählen:", start="\n")
+
+        if grade_choice == "z":
+            continue    # back to subject selection
+        
+        grade = subject.grades[int(grade_choice)]
+
+        # Edit fields (empty = keep current)
+        print(f"\nAktuell: {grade.value} | {grade.weight:.1f} | {', '.join(grade.tags)}")
+
+        try:
+            new_value = input(f"Neue Note eingeben oder Leerlassen zum Beibehalten (Aktuell {grade.value}): ").strip()
+            new_value = float(new_value) if new_value else grade.value
+
+            new_weight = input(f"Neue Gewichtung eingeben oder Leerlassen zum Beibehalten (Aktuell {grade.weight}): ").strip()
+            new_weight = float(new_weight) if new_weight else grade.weight
+
+            raw_tags = input(f"Neue Tags eingeben oder Leerlassen zum Beibehalten (Aktuell {', '.join(grade.tags)}): ").strip()
+            new_tags = [t.strip() for t in raw_tags.split(",")] if raw_tags else grade.tags
+
+            new_grade = Grade(new_value, new_weight, new_tags)
+            if not new_grade.is_valid():
+                print("Ungültige Eingabe. Note muss zwischen 1 und 6 liegen und Gewichtung muss höher als 0 sein.")
+                continue
+
+            print(f"\nVorschau: {new_value} | {new_weight} | {', '.join(new_tags)}")
+            c = confirm("Bist du sicher dass du diese Änderungen übernehmen möchtest?")
+            if c is True:
+                subject.grades[int(grade_choice)] = new_grade
+                print("Note aktualisiert.")
+                return subjects
+            elif c is False:
+                print("Vorgang abgebrochen.")
+                return subjects
+            # None → continue (back to subject selection)
+
+        except ValueError:
+            print("Ungültige Eingabe. Bitte eine Zahl eingeben.")
 
 
 def redeem(wallet: Wallet) -> Wallet:
