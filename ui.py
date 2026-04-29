@@ -176,6 +176,7 @@ def edit_grade(subjects: list[Subject], config: RewardConfig, wallet: Wallet) ->
                 c = confirm("Möchtest du alle Tags dieser Note entfernen?")
                 if c is True:
                     grade.tags = []
+                    print("Note aktualisiert.")
                     return subjects, wallet
                 elif c is False:
                     print("Vorgang abgebrochen.")
@@ -189,15 +190,21 @@ def edit_grade(subjects: list[Subject], config: RewardConfig, wallet: Wallet) ->
                     if config.enabled:
                         old_points = config.points_for_grade(grade.value)
                         old_money = config.money_for_points(old_points)
-                        if old_money > 0.0:
+                        if old_money > 0:
                             c2 = confirm(f"Note {grade.value} hat {old_money:.2f} € eingebracht. Guthaben zurückbuchen?")
                             if c2 is True:
-                                wallet.balance -= old_money
-                                print(f"Guthaben angepasst: -{old_money:.2f} €")
-                                print(f"Aktueller Kontostand: {wallet.balance:.2f} €")
+                                if wallet.balance - old_money <= 0:
+                                    c3 = confirm("Dein Guthaben wird dadurch in den negativen Bereich zurückfallen, fortfahren?")
+                                    if c3 is True:
+                                        wallet.balance -= old_money
+                                        print(f"Guthaben angepasst: -{old_money:.2f} €")
+                                        print(f"Aktueller Kontostand: {wallet.balance:.2f} €")
+                                    elif c3 is None:
+                                        continue
                             elif c2 is None:
                                 continue
                     subject.remove_grade(int(grade_choice))
+                    print("Note gelöscht.")
                     return subjects, wallet
                 elif c is False:
                     print("Vorgang abgebrochen.")
