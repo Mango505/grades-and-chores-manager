@@ -76,11 +76,11 @@ def add_grade(subjects: list[Subject], config: RewardConfig, wallet: Wallet) -> 
             return subjects, config, wallet
 
 
-def edit_grade(subjects: list[Subject]) -> list[Subject]:
+def edit_grade(subjects: list[Subject], config: RewardConfig, wallet: Wallet) -> tuple[list[Subject], Wallet]:
     print_subtitle("Note bearbeiten")
     if not subjects:
         print("Keine Fächer vorhanden.")
-        return subjects
+        return subjects, wallet
     first = True
 
     while True:
@@ -94,7 +94,7 @@ def edit_grade(subjects: list[Subject]) -> list[Subject]:
 
         if choice == "z":
             print("Vorgang abgebrochen.")
-            return subjects
+            return subjects, wallet
         
         subject = subjects[int(choice)]
         if not subject.grades:
@@ -114,37 +114,95 @@ def edit_grade(subjects: list[Subject]) -> list[Subject]:
         
         grade = subject.grades[int(grade_choice)]
 
-        # Edit fields (empty = keep current)
-        print(f"\nAktuell: {grade.value} | {grade.weight:.1f} | {', '.join(grade.tags)}")
 
-        try:
-            new_value = input(f"Neue Note eingeben oder Leerlassen zum Beibehalten (Aktuell {grade.value}): ").strip()
-            new_value = float(new_value) if new_value else grade.value
+        while True:
+            # Choose mode
+            print(f"\nAktuell: {grade.value} | {grade.weight:.1f} | {', '.join(grade.tags)}")
+            mode_choice = print_menu({
+                "1": "Note bearbeiten",
+                "2": "Tags leeren",
+                "3": "Note löschen",
+                "z": "Zurück"
+            }, "Was möchtest du tun?")
 
-            new_weight = input(f"Neue Gewichtung eingeben oder Leerlassen zum Beibehalten (Aktuell {grade.weight}): ").strip()
-            new_weight = float(new_weight) if new_weight else grade.weight
+            if mode_choice == "z": break
 
-            raw_tags = input(f"Neue Tags eingeben oder Leerlassen zum Beibehalten (Aktuell {', '.join(grade.tags)}): ").strip()
-            new_tags = [t.strip() for t in raw_tags.split(",")] if raw_tags else grade.tags
+            # Edit fields (empty = keep current)
+            elif mode_choice == "1":
+                try:
+                    new_value = input(f"Neue Note eingeben oder Leerlassen zum Beibehalten (Aktuell {grade.value}): ").strip()
+                    new_value = float(new_value) if new_value else grade.value
 
-            new_grade = Grade(new_value, new_weight, new_tags)
-            if not new_grade.is_valid():
-                print("Ungültige Eingabe. Note muss zwischen 1 und 6 liegen und Gewichtung muss höher als 0 sein.")
-                continue
+                    new_weight = input(f"Neue Gewichtung eingeben oder Leerlassen zum Beibehalten (Aktuell {grade.weight}): ").strip()
+                    new_weight = float(new_weight) if new_weight else grade.weight
 
-            print(f"\nVorschau: {new_value} | {new_weight} | {', '.join(new_tags)}")
-            c = confirm("Bist du sicher dass du diese Änderungen übernehmen möchtest?")
-            if c is True:
-                subject.grades[int(grade_choice)] = new_grade
-                print("Note aktualisiert.")
-                return subjects
-            elif c is False:
-                print("Vorgang abgebrochen.")
-                return subjects
-            # None → continue (back to subject selection)
+                    raw_tags = input(f"Neue Tags eingeben oder Leerlassen zum Beibehalten (Aktuell {', '.join(grade.tags)}): ").strip()
+                    new_tags = [t.strip() for t in raw_tags.split(",")] if raw_tags else grade.tags
 
-        except ValueError:
-            print("Ungültige Eingabe. Bitte eine Zahl eingeben.")
+                    new_grade = Grade(new_value, new_weight, new_tags)
+                    if not new_grade.is_valid():
+                        print("Ungültige Eingabe. Note muss zwischen 1 und 6 liegen und Gewichtung muss höher als 0 sein.")
+                        continue
+
+                    print(f"\nVorschau: {new_value} | {new_weight} | {', '.join(new_tags)}")
+                    c = confirm("Bist du sicher dass du diese Änderungen übernehmen möchtest?")
+                    if c is True:
+                        if config.enabled:
+                            old_money = config.money_for_points(config.points_for_grade(grade.value))
+                            new_money = config.money_for_points(config.points_for_grade(new_value))
+                            diff = new_money - old_money
+                            if diff != 0:
+                                sign = "+" if diff > 0 else ""
+                                c2 = confirm(f"Notenwert ändert sich, Guthaben um {sign}{diff:.2f} € anpassen?")
+                                if c2 is True:
+                                    wallet.balance += diff
+                                    print(f"Guthaben angepasst: {sign}{diff:.2f} €")
+                                    print(f"Aktueller Kontostand: {wallet.balance:.2f} €")
+                                elif c2 is None:
+                                    continue
+                        subject.grades[int(grade_choice)] = new_grade
+                        print("Note aktualisiert.")
+                        return subjects, wallet
+                    elif c is False:
+                        print("Vorgang abgebrochen.")
+                        return subjects, wallet
+                    # None → continue (back to subject selection)
+
+                except ValueError:
+                    print("Ungültige Eingabe. Bitte eine Zahl eingeben.")
+
+            # Clear tags
+            elif mode_choice == "2":
+                c = confirm("Möchtest du alle Tags dieser Note entfernen?")
+                if c is True:
+                    grade.tags = []
+                    return subjects, wallet
+                elif c is False:
+                    print("Vorgang abgebrochen.")
+                    return subjects, wallet
+                # None → continue (back to subject selection)
+
+            # Delete grade
+            elif mode_choice == "3":
+                c = confirm("Bist du sicher dass du diese Note löschen möchtest?")
+                if c is True:
+                    if config.enabled:
+                        old_points = config.points_for_grade(grade.value)
+                        old_money = config.money_for_points(old_points)
+                        if old_money > 0.0:
+                            c2 = confirm(f"Note {grade.value} hat {old_money:.2f} € eingebracht. Guthaben zurückbuchen?")
+                            if c2 is True:
+                                wallet.balance -= old_money
+                                print(f"Guthaben angepasst: -{old_money:.2f} €")
+                                print(f"Aktueller Kontostand: {wallet.balance:.2f} €")
+                            elif c2 is None:
+                                continue
+                    subject.remove_grade(int(grade_choice))
+                    return subjects, wallet
+                elif c is False:
+                    print("Vorgang abgebrochen.")
+                    return subjects, wallet
+                # None → continue (back to subject selection)
 
 
 def redeem(wallet: Wallet) -> Wallet:
@@ -230,7 +288,10 @@ def filter_by_tag(subjects: list[Subject]) -> list[Subject]:
         mode = "or"
 
     raw_tags = input("Nach welchen Tags möchtest du filtern (Komma als Trennzeichen)? ").strip()
-    tags = [t.strip() for t in raw_tags.split(",")] if raw_tags else []
+    if not raw_tags:
+        print("Ungültige Eingabe.")
+        return subjects
+    tags = [t.strip() for t in raw_tags.split(",")]
 
     total_value = 0.0
     total_weight = 0.0

@@ -110,7 +110,7 @@ def main():
         elif choice == "3":
             filter_by_tag(subjects)
         elif choice == "4":
-            edit_grade(subjects)
+            subjects, wallet = edit_grade(subjects, reward_config, wallet)
         elif choice == "5":
             create_subject(subjects)
         elif choice == "6":
