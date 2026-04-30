@@ -1,5 +1,5 @@
 import argparse
-from ui import print_menu, print_title, confirm, add_grade, edit_grade, redeem, show_overview, filter_by_tag, show_balance, create_subject, delete_subject, edit_config
+from ui import print_menu, print_title, confirm, add_grade, edit_grade, redeem, show_overview, filter_by_label, show_balance, create_subject, delete_subject, edit_config
 from storage import save_app_config, load_app_config, save_subjects, load_subjects, save_wallet, load_wallet, save_reward_config, load_reward_config, APPCONFIG_PATH, DATA_PATH, WALLET_PATH, REWARDCONFIG_PATH
 from models import LoadStatus
 
@@ -76,7 +76,7 @@ def main():
     while True:
         menu = {"1": "Note hinzufügen"}
         menu["2"] = "Notenübersicht"
-        menu["3"] = "Nach Tags filtern"
+        menu["3"] = "Nach Labels filtern"
         menu["4"] = "Note bearbeiten"
         menu["5"] = "Fach erstellen"
         menu["6"] = "Fach löschen"
@@ -108,7 +108,7 @@ def main():
         elif choice == "2":
             show_overview(subjects)
         elif choice == "3":
-            filter_by_tag(subjects)
+            filter_by_label(subjects)
         elif choice == "4":
             subjects, wallet = edit_grade(subjects, reward_config, wallet)
         elif choice == "5":

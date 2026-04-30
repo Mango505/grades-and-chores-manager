@@ -4,22 +4,22 @@ DEFAULT_POINTS_MAP = {1: 10, 2: 6, 3: 2, 4: 0, 5: 0, 6: 0}  # 5€ / 3€ / 1€
 DEFAULT_MONEY_PER_POINT = 0.50                              # default
 
 class Grade:
-    def __init__(self, value: float, weight: float = 1.0, tags: list[str] | None = None):
+    def __init__(self, value: float, weight: float = 1.0, labels: list[str] | None = None):
         self.value = value
         self.weight = weight
-        self.tags = tags if tags is not None else []
+        self.labels = labels if labels is not None else []
 
     def is_valid(self) -> bool:
         return 1.0 <= self.value <= 6.0 and self.weight > 0.0
 
     def to_dict(self) -> dict:
         """Serialize Grade to a JSON-compatible dict."""
-        return {"value": self.value, "weight": self.weight, "tags": self.tags}
+        return {"value": self.value, "weight": self.weight, "labels": self.labels}
 
     @classmethod
     def from_dict(cls, data: dict) -> "Grade":
         """Deserialize a Grade from a dict."""
-        return cls(data["value"], data["weight"], data["tags"])
+        return cls(data["value"], data["weight"], data["labels"])
 
 
 class Subject:
@@ -39,12 +39,12 @@ class Subject:
             return 0.0
         return sum(g.value * g.weight for g in self.grades) / sum(g.weight for g in self.grades)
     
-    def average_by_tag(self, tags: list[str], mode: str) -> float:
+    def average_by_label(self, labels: list[str], mode: str) -> float:
         """Weighted average of grades by filter."""
         if mode == "and":
-            filtered = [g for g in self.grades if all(t in g.tags for t in tags)]
+            filtered = [g for g in self.grades if all(t in g.labels for t in labels)]
         if mode == "or":
-            filtered = [g for g in self.grades if any(t in g.tags for t in tags)]
+            filtered = [g for g in self.grades if any(t in g.labels for t in labels)]
         if not filtered:
             return 0.0
         return sum(g.value * g.weight for g in filtered) / sum(g.weight for g in filtered)

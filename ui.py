@@ -38,16 +38,16 @@ def add_grade(subjects: list[Subject], config: RewardConfig, wallet: Wallet) -> 
             else:
                 weight = 1.0
 
-            # Enter tags
-            raw_tags = input("Tags für die Note eingeben oder leerlassen (Komma als Trennzeichen): ").strip()
-            tags = [t.strip() for t in raw_tags.split(",")] if raw_tags else []     # empty list if no input
-            for i, t in enumerate(tags):
-                tags[i] = t.strip()
+            # Enter labels
+            raw_labels = input("Labels für die Note eingeben oder leerlassen (Komma als Trennzeichen): ").strip()
+            labels = [t.strip() for t in raw_labels.split(",")] if raw_labels else []     # empty list if no input
+            for i, t in enumerate(labels):
+                labels[i] = t.strip()
 
-            grade = Grade(value, weight, tags)   # create Grade object from user inputs
+            grade = Grade(value, weight, labels)   # create Grade object from user inputs
 
             if grade.is_valid():
-                print(f"Vorschau: Note {value} | Gewichtung: {weight} | Tags: {raw_tags}")
+                print(f"Vorschau: Note {value} | Gewichtung: {weight} | Labels: {raw_labels}")
 
                 c = confirm("Ist das korrekt?")
                 if c is True:
@@ -103,7 +103,7 @@ def edit_grade(subjects: list[Subject], config: RewardConfig, wallet: Wallet) ->
 
         # Choose grade
         grade_options = {
-            str(i): f"{g.value} | {g.weight:.1f} | {', '.join(g.tags)}"
+            str(i): f"{g.value} | {g.weight:.1f} | {', '.join(g.labels)}"
             for i, g in enumerate(subject.grades)
         }
         grade_options["z"] = "Zurück"
@@ -117,10 +117,10 @@ def edit_grade(subjects: list[Subject], config: RewardConfig, wallet: Wallet) ->
 
         while True:
             # Choose mode
-            print(f"\nAktuell: {grade.value} | {grade.weight:.1f} | {', '.join(grade.tags)}")
+            print(f"\nAktuell: {grade.value} | {grade.weight:.1f} | {', '.join(grade.labels)}")
             mode_choice = print_menu({
                 "1": "Note bearbeiten",
-                "2": "Tags leeren",
+                "2": "Labels leeren",
                 "3": "Note löschen",
                 "z": "Zurück"
             }, "Was möchtest du tun?")
@@ -136,15 +136,15 @@ def edit_grade(subjects: list[Subject], config: RewardConfig, wallet: Wallet) ->
                     new_weight = input(f"Neue Gewichtung eingeben oder Leerlassen zum Beibehalten (Aktuell {grade.weight}): ").strip()
                     new_weight = float(new_weight) if new_weight else grade.weight
 
-                    raw_tags = input(f"Neue Tags eingeben oder Leerlassen zum Beibehalten (Aktuell {', '.join(grade.tags)}): ").strip()
-                    new_tags = [t.strip() for t in raw_tags.split(",")] if raw_tags else grade.tags
+                    raw_labels = input(f"Neue Labels eingeben oder Leerlassen zum Beibehalten (Aktuell {', '.join(grade.labels)}): ").strip()
+                    new_labels = [t.strip() for t in raw_labels.split(",")] if raw_labels else grade.labels
 
-                    new_grade = Grade(new_value, new_weight, new_tags)
+                    new_grade = Grade(new_value, new_weight, new_labels)
                     if not new_grade.is_valid():
                         print("Ungültige Eingabe. Note muss zwischen 1 und 6 liegen und Gewichtung muss höher als 0 sein.")
                         continue
 
-                    print(f"\nVorschau: {new_value} | {new_weight} | {', '.join(new_tags)}")
+                    print(f"\nVorschau: {new_value} | {new_weight} | {', '.join(new_labels)}")
                     c = confirm("Bist du sicher dass du diese Änderungen übernehmen möchtest?")
                     if c is True:
                         if config.enabled:
@@ -171,11 +171,11 @@ def edit_grade(subjects: list[Subject], config: RewardConfig, wallet: Wallet) ->
                 except ValueError:
                     print("Ungültige Eingabe. Bitte eine Zahl eingeben.")
 
-            # Clear tags
+            # Clear labels
             elif mode_choice == "2":
-                c = confirm("Möchtest du alle Tags dieser Note entfernen?")
+                c = confirm("Möchtest du alle Labels dieser Note entfernen?")
                 if c is True:
-                    grade.tags = []
+                    grade.labels = []
                     print("Note aktualisiert.")
                     return subjects, wallet
                 elif c is False:
@@ -263,13 +263,13 @@ def show_overview(subjects: list[Subject]) -> list[Subject]:
         print(f"Fach: {subject.name} | Durchschnitt: {subject.average():.2f}")
 
         if subject.grades:
-            print("└──" + "\tEinträge (Note | Gewichtung | Tags):")
+            print("└──" + "\tEinträge (Note | Gewichtung | Labels):")
         else:
             print("└──" + "\tDieses Fach enthält keine Noten.")
 
         for grade in subject.grades:
-            tags_str = ", ".join(grade.tags)
-            print(f"\t{grade.value} | {grade.weight:.1f} | {tags_str}")
+            labels_str = ", ".join(grade.labels)
+            print(f"\t{grade.value} | {grade.weight:.1f} | {labels_str}")
             total_value += grade.value * grade.weight
             total_weight += grade.weight
 
@@ -279,26 +279,26 @@ def show_overview(subjects: list[Subject]) -> list[Subject]:
     print(f"Gesamtdurchschnitt: {overall}")
 
 
-def filter_by_tag(subjects: list[Subject]) -> list[Subject]:
-    print_subtitle("Nach Tags filtern")
+def filter_by_label(subjects: list[Subject]) -> list[Subject]:
+    print_subtitle("Nach Labels filtern")
     if not subjects:
         print("Keine Fächer vorhanden.")
         return subjects
 
     choice = print_menu({
-        "1": "Es müssen alle Tags übereinstimmen",
-        "2": "Es muss mindestens ein Tag übereinstimmen"
+        "1": "Es müssen alle Labels übereinstimmen",
+        "2": "Es muss mindestens ein Labels übereinstimmen"
     }, "Wähle einen Filtermodus aus:")
     if choice == "1":
         mode = "and"
     if choice == "2":
         mode = "or"
 
-    raw_tags = input("Nach welchen Tags möchtest du filtern (Komma als Trennzeichen)? ").strip()
-    if not raw_tags:
+    raw_labels = input("Nach welchen Labels möchtest du filtern (Komma als Trennzeichen)? ").strip()
+    if not raw_labels:
         print("Ungültige Eingabe.")
         return subjects
-    tags = [t.strip() for t in raw_tags.split(",")]
+    labels = [t.strip() for t in raw_labels.split(",")]
 
     total_value = 0.0
     total_weight = 0.0
@@ -306,26 +306,26 @@ def filter_by_tag(subjects: list[Subject]) -> list[Subject]:
 
     for subject in subjects:
         if mode == "and":
-            filtered = [g for g in subject.grades if all(t in g.tags for t in tags)]
+            filtered = [g for g in subject.grades if all(t in g.labels for t in labels)]
         if mode == "or":
-            filtered = [g for g in subject.grades if any(t in g.tags for t in tags)]
+            filtered = [g for g in subject.grades if any(t in g.labels for t in labels)]
         if not filtered:
             continue
 
         found = True
-        print(f"\nFach: {subject.name} | Tag-Durchschnitt: {subject.average_by_tag(tags, f"{mode}"):.2f}")
-        print("└──\tEinträge (Note | Gewichtung | Tags):")
+        print(f"\nFach: {subject.name} | Label-Durchschnitt: {subject.average_by_label(labels, f"{mode}"):.2f}")
+        print("└──\tEinträge (Note | Gewichtung | Labels):")
         for grade in filtered:
-            tags_str = ', '.join(grade.tags)
-            print(f"\t{grade.value} | {grade.weight:.1f} | {tags_str}")
+            labels_str = ', '.join(grade.labels)
+            print(f"\t{grade.value} | {grade.weight:.1f} | {labels_str}")
             total_value += grade.value * grade.weight
             total_weight += grade.weight
 
     if not found:
-        print(f"Keine Einträge mit Tag '{raw_tags}' gefunden.")
+        print(f"Keine Einträge mit Label{'s' if len(labels) > 1 else ''} '{raw_labels}' gefunden.")
         return subjects
 
-    print(f"\nGesamtdurchschnitt für '{raw_tags}': {total_value / total_weight:.2f}")
+    print(f"\nGesamtdurchschnitt für '{raw_labels}': {total_value / total_weight:.2f}")
     return subjects
 
 
