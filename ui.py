@@ -199,8 +199,12 @@ def edit_grade(subjects: list[Subject], config: RewardConfig, wallet: Wallet) ->
                                         wallet.balance -= old_money
                                         print(f"Guthaben angepasst: -{old_money:.2f} €")
                                         print(f"Aktueller Kontostand: {wallet.balance:.2f} €")
-                                    elif c3 is None:
+                                    else:
                                         continue
+                                else:
+                                    wallet.balance -= old_money
+                                    print(f"Guthaben angepasst: -{old_money:.2f} €")
+                                    print(f"Aktueller Kontostand: {wallet.balance:.2f} €")
                             elif c2 is None:
                                 continue
                     subject.remove_grade(int(grade_choice))
@@ -291,7 +295,7 @@ def filter_by_label(subjects: list[Subject]) -> list[Subject]:
     }, "Wähle einen Filtermodus aus:")
     if choice == "1":
         mode = "and"
-    if choice == "2":
+    elif choice == "2":
         mode = "or"
 
     raw_labels = input("Nach welchen Labels möchtest du filtern (Komma als Trennzeichen)? ").strip()
@@ -503,6 +507,7 @@ def configure_rewards(config: RewardConfig) -> RewardConfig:
             while True:
                 try:
                     raw = input(f"Neuen Geldwert pro Punkt eingeben oder leerlassen zum Beibehalten (Aktuell {money:.2f} € pro Punkt)" + "\n> ").strip()
+                    if not raw: break
                     new_money = float(raw)
 
                     c = confirm(f"Bist du sicher dass du den Geldwert pro Punkt zu {new_money:.2f} € ändern möchtest?")
@@ -521,6 +526,7 @@ def configure_rewards(config: RewardConfig) -> RewardConfig:
             if c is True:
                 config.enabled = False
                 print("Belohnungssystem deaktiviert.")
+                # Return to configure rewards screen
             elif c is False:
                 print("Vorgang abgebrochen.")
 
