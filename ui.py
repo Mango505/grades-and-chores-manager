@@ -47,7 +47,7 @@ def add_grade(subjects: list[Subject], config: RewardConfig, wallet: Wallet) -> 
             grade = Grade(value, weight, labels)   # create Grade object from user inputs
 
             if grade.is_valid():
-                print(f"Vorschau: Note {value} | Gewichtung: {weight} | Labels: {raw_labels}")
+                print(f"Vorschau: Note {value} | Gewichtung: {weight} | Labels: {raw_labels if raw_labels else "<keine Labels>"}")
 
                 c = confirm("Ist das korrekt?")
                 if c is True:
@@ -103,7 +103,7 @@ def edit_grade(subjects: list[Subject], config: RewardConfig, wallet: Wallet) ->
 
         # Choose grade
         grade_options = {
-            str(i): f"{g.value} | {g.weight:.1f} | {', '.join(g.labels)}"
+            str(i): f"{g.value} | {g.weight:.1f} | {', '.join(g.labels) or "<keine Labels>"}"
             for i, g in enumerate(subject.grades)
         }
         grade_options["z"] = "Zurück"
@@ -117,7 +117,7 @@ def edit_grade(subjects: list[Subject], config: RewardConfig, wallet: Wallet) ->
 
         while True:
             # Choose mode
-            print(f"\nAktuell: {grade.value} | {grade.weight:.1f} | {', '.join(grade.labels)}")
+            print(f"\nAktuell: {grade.value} | {grade.weight:.1f} | {', '.join(grade.labels) or "<keine Labels>"}")
             mode_choice = print_menu({
                 "1": "Note bearbeiten",
                 "2": "Labels leeren",
@@ -136,7 +136,7 @@ def edit_grade(subjects: list[Subject], config: RewardConfig, wallet: Wallet) ->
                     new_weight = input(f"Neue Gewichtung eingeben oder Leerlassen zum Beibehalten (Aktuell {grade.weight}): ").strip()
                     new_weight = float(new_weight) if new_weight else grade.weight
 
-                    raw_labels = input(f"Neue Labels eingeben oder Leerlassen zum Beibehalten (Aktuell {', '.join(grade.labels)}): ").strip()
+                    raw_labels = input(f"Neue Labels eingeben oder Leerlassen zum Beibehalten (Aktuell {', '.join(grade.labels) or "<keine Labels>"}): ").strip()
                     new_labels = [t.strip() for t in raw_labels.split(",")] if raw_labels else grade.labels
 
                     new_grade = Grade(new_value, new_weight, new_labels)
@@ -144,7 +144,7 @@ def edit_grade(subjects: list[Subject], config: RewardConfig, wallet: Wallet) ->
                         print("Ungültige Eingabe. Note muss zwischen 1 und 6 liegen und Gewichtung muss höher als 0 sein.")
                         continue
 
-                    print(f"\nVorschau: {new_value} | {new_weight} | {', '.join(new_labels)}")
+                    print(f"\nVorschau: {new_value} | {new_weight} | {', '.join(new_labels) or "<keine Labels>"}")
                     c = confirm("Bist du sicher dass du diese Änderungen übernehmen möchtest?")
                     if c is True:
                         if config.enabled:
@@ -268,7 +268,7 @@ def show_overview(subjects: list[Subject]) -> list[Subject]:
             print("└──" + "\tDieses Fach enthält keine Noten.")
 
         for grade in subject.grades:
-            labels_str = ", ".join(grade.labels)
+            labels_str = ", ".join(grade.labels) or "<keine Labels>"
             print(f"\t{grade.value} | {grade.weight:.1f} | {labels_str}")
             total_value += grade.value * grade.weight
             total_weight += grade.weight
@@ -316,7 +316,7 @@ def filter_by_label(subjects: list[Subject]) -> list[Subject]:
         print(f"\nFach: {subject.name} | Label-Durchschnitt: {subject.average_by_label(labels, f"{mode}"):.2f}")
         print("└──\tEinträge (Note | Gewichtung | Labels):")
         for grade in filtered:
-            labels_str = ', '.join(grade.labels)
+            labels_str = ', '.join(grade.labels) or "<keine Labels>"
             print(f"\t{grade.value} | {grade.weight:.1f} | {labels_str}")
             total_value += grade.value * grade.weight
             total_weight += grade.weight
