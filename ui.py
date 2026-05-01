@@ -337,11 +337,11 @@ def show_balance(config: RewardConfig, wallet: Wallet) -> tuple[RewardConfig, Wa
     print_subtitle("Kontoübersicht")
 
     # Balance
-    print(f"Aktueller Kontostand: {wallet.balance:.2f} €", end="\n\n")
+    print(f"Aktueller Kontostand: {wallet.balance:.2f} €")
 
     # Redemptions
     if wallet.redemptions:
-        print("Letzte Einlösungen:")
+        print("\nLetzte Einlösungen:")
         for r in wallet.redemptions[-5:][::-1]:  # show last 5 redemptions
             desc = r["description"]
             cost = r["cost"]

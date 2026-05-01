@@ -151,10 +151,10 @@ class AppConfig:
     @classmethod
     def from_dict(cls, data: dict) -> "AppConfig":
         return cls(
-            app_config_path=data["app_config_path"],
-            data_path=data["data_path"],
-            wallet_path=data["wallet_path"],
-            reward_config_path=data["reward_config_path"],
+            app_config_path=data.get("app_config_path") or "data/app_config.json",
+            data_path=data.get("data_path") or "data/grades.json",
+            wallet_path=data.get("wallet_path") or "data/wallet.json",
+            reward_config_path=data.get("reward_config_path") or "data/reward_config.json",
             verbose_loading=data.get("verbose_loading", True)
         )
 

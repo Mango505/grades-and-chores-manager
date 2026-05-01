@@ -48,29 +48,37 @@ def main():
     elif status == LoadStatus.OK and app_config.verbose_loading:
         print(f"App-Konfiguration geladen: {args.app_config}")
 
-    subjects, status = load_subjects(args.file)
+    # After loading app_config, seed it with CLI args if explicitly provided
+    if args.file != DATA_PATH:
+        app_config.data_path = args.file
+    if args.wallet != WALLET_PATH:
+        app_config.wallet_path = args.wallet
+    if args.reward_config != REWARDCONFIG_PATH:
+        app_config.reward_config_path = args.reward_config
+
+    subjects, status = load_subjects(app_config.data_path)
     if status == LoadStatus.MISSING:
         print(f"Warnung: {args.file} existiert nicht. Es wird eine leere Noten-Liste geladen.")
     elif status == LoadStatus.CORRUPT:
         print(f"Warnung: {args.file} ist korrupt. Es wird eine leere Noten-Liste geladen.")
     elif status == LoadStatus.OK and app_config.verbose_loading:
-        print(f"Noten geladen: {args.file}")
+        print(f"Noten geladen: {app_config.data_path}")
 
-    wallet, status = load_wallet(args.wallet)
+    wallet, status = load_wallet(app_config.wallet_path)
     if status == LoadStatus.MISSING:
         print(f"Warnung: {args.wallet} existiert nicht. Es wird ein leeres Wallet geladen.")
     elif status == LoadStatus.CORRUPT:
         print(f"Warnung: {args.wallet} ist korrupt. Es wird ein leeres Wallet geladen.")
     elif status == LoadStatus.OK and app_config.verbose_loading:
-        print(f"Wallet geladen: {args.wallet}")
+        print(f"Wallet geladen: {app_config.wallet_path}")
     
-    reward_config, status = load_reward_config(args.reward_config)
+    reward_config, status = load_reward_config(app_config.reward_config_path)
     if status == LoadStatus.MISSING:
         print(f"Warnung: {args.reward_config} existiert nicht. Es wird die Standardkonfiguration des Belohnungssystems geladen.")
     elif status == LoadStatus.CORRUPT:
         print(f"Warnung: {args.reward_config} ist korrupt. Es wird die Standardkonfiguration des Belohnungssystems geladen.")
     elif status == LoadStatus.OK and app_config.verbose_loading:
-        print(f"Belohnungssystem-Konfiguration geladen: {args.reward_config}")
+        print(f"Belohnungssystem-Konfiguration geladen: {app_config.reward_config_path}")
 
     # --- Menu flow ---
     while True:
@@ -95,10 +103,10 @@ def main():
         )
 
         if choice == "q":
-            save_app_config(app_config, args.app_config)
-            save_subjects(subjects, args.file)
-            save_wallet(wallet, args.wallet)
-            save_reward_config(reward_config, args.reward_config)
+            save_app_config(app_config, app_config.app_config_path)
+            save_subjects(subjects, app_config.data_path)
+            save_wallet(wallet, app_config.wallet_path)
+            save_reward_config(reward_config, app_config.reward_config_path)
             break
         elif choice == "x":
             if confirm("Bist du sicher dass du NICHT speichern willst?"):

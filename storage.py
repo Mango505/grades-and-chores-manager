@@ -29,7 +29,7 @@ def load_app_config(path: str = APPCONFIG_PATH) -> tuple[AppConfig, LoadStatus]:
             data = json.load(f)
             return AppConfig.from_dict(data), LoadStatus.OK
 
-    except json.JSONDecodeError:
+    except (json.JSONDecodeError, KeyError, TypeError):
         return AppConfig(), LoadStatus.CORRUPT  # returns default config if file is corrupt
 
 
