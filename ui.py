@@ -52,6 +52,7 @@ def add_grade(subjects: list[Subject], config: RewardConfig, wallet: Wallet) -> 
                 c = confirm("Ist das korrekt?")
                 if c is True:
                     choice.add_grade(grade)    # add the Grade to the desired subject
+                    wallet.log_grade_event("+", choice.name, value, weight, labels)
                     print(f"\nNeue Note zum Fach '{choice.name}' hinzugefügt.")
 
                     if config.enabled:  # show earnings if rewards are enabled
@@ -161,6 +162,7 @@ def edit_grade(subjects: list[Subject], config: RewardConfig, wallet: Wallet) ->
                                 elif c2 is None:
                                     continue
                         subject.grades[int(grade_choice)] = new_grade
+                        wallet.log_grade_event("~", subject.name, new_value, new_weight, new_labels)
                         print("Note aktualisiert.")
                         return subjects, wallet
                     elif c is False:
@@ -208,6 +210,7 @@ def edit_grade(subjects: list[Subject], config: RewardConfig, wallet: Wallet) ->
                             elif c2 is None:
                                 continue
                     subject.remove_grade(int(grade_choice))
+                    wallet.log_grade_event("-", subject.name, grade.value, grade.weight, grade.labels)
                     print("Note gelöscht.")
                     return subjects, wallet
                 elif c is False:
@@ -335,28 +338,32 @@ def filter_by_label(subjects: list[Subject]) -> list[Subject]:
 
 def show_balance(config: RewardConfig, wallet: Wallet) -> tuple[RewardConfig, Wallet]:
     print_subtitle("Kontoübersicht")
-
-    # Balance
     print(f"Aktueller Kontostand: {wallet.balance:.2f} €")
 
-    # Redemptions
     if wallet.redemptions:
         print("\nLetzte Einlösungen:")
-        for r in wallet.redemptions[-5:][::-1]:  # show last 5 redemptions
-            desc = r["description"]
-            cost = r["cost"]
-            date = r.get("date", "<unbekanntes Datum>")
-            print(f"{desc} | -{cost:.2f} € | {date}")
-
+        for r in wallet.redemptions[-5:][::-1]:  # show last 5
+            print(f"{r['description']} | -{r['cost']:.2f} € | {r.get('date','<unbekanntes Datum')}")
         length = len(wallet.redemptions)
-        if length > 5: 
-            c = confirm(f"\nSollen alle {length} Einträge angezeigt werden?")
+        if length > 5:
+            c = confirm(f"\nSollen alle {length} Einlösungen angezeigt werden?")
             if c is True:
                 for r in wallet.redemptions:    # show all, including previously shown
-                    desc = r["description"]
-                    cost = r["cost"]
-                    date = r.get("date", "<unbekanntes Datum>")
-                    print(f"{desc} | -{cost:.2f} € | {date}")
+                    print(f"{r['description']} | -{r['cost']:.2f} € | {r.get('date','<unbekanntes Datum')}")
+
+    if wallet.grade_log:
+        print("\nLetzte Notenänderungen:")
+        symbols = {"+": "Hinzugefügt", "-": "Gelöscht", "~": "Bearbeitet"}
+        for e in wallet.grade_log[-5:][::-1]:
+            labels_str = ", ".join(e["labels"]) or "<keine Labels>"
+            print(f"{symbols.get(e['action'], e['action'])} | {e['date']} | {e['subject']} | {e['value']} ({e['weight']:.1f}x) | {labels_str}")
+        length = len(wallet.grade_log)
+        if length > 5:
+            c = confirm(f"\nSollen alle {length} Notenänderungen angezeigt werden?")
+            if c is True:
+                for e in wallet.grade_log:
+                    labels_str = ", ".join(e["labels"]) or "<keine Labels>"
+                    print(f"{symbols.get(e['action'], e['action'])} | {e['date']} | {e['subject']} | {e['value']} ({e['weight']:.1f}x) | {labels_str}")
 
     return config, wallet
 

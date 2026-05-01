@@ -72,15 +72,19 @@ def load_wallet(path: str = WALLET_PATH) -> tuple[Wallet, LoadStatus]:
         Load wallet data from JSON file. Returns empty wallet if file is missing or corrupt.
     """
     if not os.path.exists(path):
-        return Wallet(balance=0.0, redemptions=[]), LoadStatus.MISSING  # returns empty wallet if file is missing
+        return Wallet(balance=0.0, redemptions=[], grade_log=[]), LoadStatus.MISSING    # returns empty wallet if file is missing
 
     try:
         with open(path, "r") as f:
             data = json.load(f)
-            return Wallet(balance=data.get("balance", 0.0), redemptions=data.get("redemptions", [])), LoadStatus.OK
+            return Wallet(
+                balance=data.get("balance", 0.0),
+                redemptions=data.get("redemptions", []),
+                grade_log=data.get("grade_log", [])
+            ), LoadStatus.OK
 
     except json.JSONDecodeError:
-        return Wallet(balance=0.0, redemptions=[]), LoadStatus.CORRUPT  # returns empty wallet if file is corrupt
+        return Wallet(balance=0.0, redemptions=[], grade_log=[]), LoadStatus.CORRUPT    # returns empty wallet if file is corrupt
 
 
 def save_reward_config(config: RewardConfig, path: str = REWARDCONFIG_PATH) -> None:

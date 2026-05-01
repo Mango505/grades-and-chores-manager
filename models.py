@@ -60,34 +60,36 @@ class Subject:
 
 
 class Wallet:
-    def __init__(self, balance: float, redemptions: list[dict]):
+    def __init__(self, balance: float, redemptions: list[dict], grade_log: list[dict] = None):
         self.balance = balance          # earned but not yet redeemed money
         self.redemptions = redemptions  # list of dicts with "description" and "cost" for each redemption
+        self.grade_log = grade_log if grade_log is not None else []
 
-    def redeem(self, cost: float, description: str = "<keine Beschreibung>") -> None:
-        """
-            Subtract cost from balance and log the redemption.
-        """
-        self.balance -= cost
-        self.redemptions.append({
-            "description": description,
-            "cost": cost,
-            "date": datetime.now().strftime("%d.%m.%Y %H:%M")   # e.g. "11.04.2026 14:30"
+    def log_grade_event(self, action: str, subject: str, value: float, weight: float, labels: list[str]) -> None:
+        """Log a grade add/edit/delete event. action: '+', '-', '~'"""
+        self.grade_log.append({
+            "action": action,
+            "subject": subject,
+            "value": value,
+            "weight": weight,
+            "labels": labels,
+            "date": datetime.now().strftime("%d.%m.%Y %H:%M")
         })
 
     def to_dict(self) -> dict:
         return {
             "balance": self.balance,
             "redemptions": self.redemptions,
+            "grade_log": self.grade_log,
         }
 
     @classmethod
     def from_dict(cls, data: dict) -> "Wallet":
         return cls(
             balance=data["balance"],
-            redemptions=data["redemptions"]
+            redemptions=data["redemptions"],
+            grade_log=data.get("grade_log", [])  # backwards-compatible
         )
-
 
 class RewardConfig:
     def __init__(
