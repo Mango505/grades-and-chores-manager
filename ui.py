@@ -52,7 +52,8 @@ def add_grade(subjects: list[Subject], config: RewardConfig, wallet: Wallet) -> 
                 c = confirm("Ist das korrekt?")
                 if c is True:
                     choice.add_grade(grade)    # add the Grade to the desired subject
-                    wallet.log_grade_event("+", choice.name, value, weight, labels)
+                    money_delta = config.money_for_points(config.points_for_grade(value)) if config.enabled else None
+                    wallet.log_grade_event("+", choice.name, value, weight, labels, money_delta)
                     print(f"\nNeue Note zum Fach '{choice.name}' hinzugefügt.")
 
                     if config.enabled:  # show earnings if rewards are enabled
@@ -61,7 +62,6 @@ def add_grade(subjects: list[Subject], config: RewardConfig, wallet: Wallet) -> 
                         print(f"Note {value}: {points} Punkte (+{money:.2f} €)")
                         wallet.balance += money
                         print(f"Aktueller Kontostand: {wallet.balance:.2f} €")
-
                     return subjects, config, wallet
                 elif c is False: 
                     print("Vorgang abgebrochen.")
@@ -162,7 +162,9 @@ def edit_grade(subjects: list[Subject], config: RewardConfig, wallet: Wallet) ->
                                 elif c2 is None:
                                     continue
                         subject.grades[int(grade_choice)] = new_grade
-                        wallet.log_grade_event("~", subject.name, new_value, new_weight, new_labels)
+                        money_delta = (config.money_for_points(config.points_for_grade(new_value)) - 
+                                       config.money_for_points(config.points_for_grade(grade.value))) if config.enabled else None
+                        wallet.log_grade_event("~", subject.name, new_value, new_weight, new_labels, money_delta)
                         print("Note aktualisiert.")
                         return subjects, wallet
                     elif c is False:
@@ -193,9 +195,9 @@ def edit_grade(subjects: list[Subject], config: RewardConfig, wallet: Wallet) ->
                         old_points = config.points_for_grade(grade.value)
                         old_money = config.money_for_points(old_points)
                         if old_money > 0:
-                            c2 = confirm(f"Note {grade.value} hat {old_money:.2f} € eingebracht. Guthaben zurückbuchen?")
+                            c2 = confirm(f"Note {grade.value} hat {old_money:.2f} € eingebracht (Aktueller Kontostand: {wallet.balance:.2f} €). Guthaben zurückbuchen?")
                             if c2 is True:
-                                if wallet.balance - old_money <= 0:
+                                if wallet.balance - old_money < 0:
                                     c3 = confirm("Dein Guthaben wird dadurch in den negativen Bereich zurückfallen, fortfahren?")
                                     if c3 is True:
                                         wallet.balance -= old_money
@@ -209,8 +211,8 @@ def edit_grade(subjects: list[Subject], config: RewardConfig, wallet: Wallet) ->
                                     print(f"Aktueller Kontostand: {wallet.balance:.2f} €")
                             elif c2 is None:
                                 continue
-                    subject.remove_grade(int(grade_choice))
-                    wallet.log_grade_event("-", subject.name, grade.value, grade.weight, grade.labels)
+                    money_delta = -config.money_for_points(config.points_for_grade(grade.value)) if config.enabled else None
+                    wallet.log_grade_event("-", subject.name, grade.value, grade.weight, grade.labels, money_delta)
                     print("Note gelöscht.")
                     return subjects, wallet
                 elif c is False:
@@ -356,14 +358,14 @@ def show_balance(config: RewardConfig, wallet: Wallet) -> tuple[RewardConfig, Wa
         symbols = {"+": "Hinzugefügt", "-": "Gelöscht", "~": "Bearbeitet"}
         for e in wallet.grade_log[-5:][::-1]:
             labels_str = ", ".join(e["labels"]) or "<keine Labels>"
-            print(f"{symbols.get(e['action'], e['action'])} | {e['date']} | {e['subject']} | {e['value']} ({e['weight']:.1f}x) | {labels_str}")
+            print(f"{symbols.get(e['action'], e['action'])} | {e['date']} | {e['subject']} | {e['value']} ({e['weight']:.1f}x) | {labels_str}" + f" | {e["money_delta"]} €" if config.enabled else "")
         length = len(wallet.grade_log)
         if length > 5:
             c = confirm(f"\nSollen alle {length} Notenänderungen angezeigt werden?")
             if c is True:
                 for e in wallet.grade_log:
                     labels_str = ", ".join(e["labels"]) or "<keine Labels>"
-                    print(f"{symbols.get(e['action'], e['action'])} | {e['date']} | {e['subject']} | {e['value']} ({e['weight']:.1f}x) | {labels_str}")
+                    print(f"{symbols.get(e['action'], e['action'])} | {e['date']} | {e['subject']} | {e['value']} ({e['weight']:.1f}x) | {labels_str}" + f" | {e["money_delta"]} €" if config.enabled else "")
 
     return config, wallet
 

@@ -65,7 +65,7 @@ class Wallet:
         self.redemptions = redemptions  # list of dicts with "description" and "cost" for each redemption
         self.grade_log = grade_log if grade_log is not None else []
 
-    def log_grade_event(self, action: str, subject: str, value: float, weight: float, labels: list[str]) -> None:
+    def log_grade_event(self, action: str, subject: str, value: float, weight: float, labels: list[str], money_delta: float = None) -> None:
         """Log a grade add/edit/delete event. action: '+', '-', '~'"""
         self.grade_log.append({
             "action": action,
@@ -73,6 +73,7 @@ class Wallet:
             "value": value,
             "weight": weight,
             "labels": labels,
+            "money_delta": money_delta,   # None if rewards disabled
             "date": datetime.now().strftime("%d.%m.%Y %H:%M")
         })
 
