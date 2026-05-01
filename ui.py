@@ -63,7 +63,7 @@ def add_grade(subjects: list[Subject], config: RewardConfig, wallet: Wallet) -> 
                         wallet.balance += money
                         print(f"Aktueller Kontostand: {wallet.balance:.2f} €")
                     return subjects, config, wallet
-                elif c is False: 
+                elif c is False:
                     print("Vorgang abgebrochen.")
                     return subjects, config, wallet
                 continue
@@ -96,7 +96,7 @@ def edit_grade(subjects: list[Subject], config: RewardConfig, wallet: Wallet) ->
         if choice == "z":
             print("Vorgang abgebrochen.")
             return subjects, wallet
-        
+
         subject = subjects[int(choice)]
         if not subject.grades:
             print(f"'{subject.name}' enthält keine Noten.")
@@ -112,7 +112,7 @@ def edit_grade(subjects: list[Subject], config: RewardConfig, wallet: Wallet) ->
 
         if grade_choice == "z":
             continue    # back to subject selection
-        
+
         grade = subject.grades[int(grade_choice)]
 
 
@@ -162,7 +162,7 @@ def edit_grade(subjects: list[Subject], config: RewardConfig, wallet: Wallet) ->
                                 elif c2 is None:
                                     continue
                         subject.grades[int(grade_choice)] = new_grade
-                        money_delta = (config.money_for_points(config.points_for_grade(new_value)) - 
+                        money_delta = (config.money_for_points(config.points_for_grade(new_value)) -
                                        config.money_for_points(config.points_for_grade(grade.value))) if config.enabled else None
                         wallet.log_grade_event("~", subject.name, new_value, new_weight, new_labels, money_delta)
                         print("Note aktualisiert.")
@@ -594,7 +594,7 @@ def configure_paths(config: AppConfig) -> AppConfig:
             new = input(f"Neuen Pfad für die Wallet-Datei eingeben (Aktuell: {config.wallet_path})" + "\n> ").strip()
             if not new: continue
             if not _is_valid_path(new): print("Ungültiger Pfad. Bitte keine Sonderzeichen wie < > \" | ? * verwenden."); continue
-            
+
             c = confirm(f"Bist du sicher dass du den Pfad der Wallet-Datei zu '{new}' ändern möchtest?")
             if c is True:
                 config.wallet_path = new
@@ -606,7 +606,7 @@ def configure_paths(config: AppConfig) -> AppConfig:
             new = input(f"Neuen Pfad für die Belohnungs-Konfigurationsdatei eingeben (Aktuell: {config.reward_config_path})" + "\n> ").strip()
             if not new: continue
             if not _is_valid_path(new): print("Ungültiger Pfad. Bitte keine Sonderzeichen wie < > \" | ? * verwenden."); continue
-            
+
             c = confirm(f"Bist du sicher dass du den Pfad der Belohnungs-Konfigurationsdatei zu '{new}' ändern möchtest?")
             if c is True:
                 config.reward_config_path = new
@@ -656,7 +656,7 @@ def confirm(message: str, prompt: str = " 'J'/'N'/'Z': ") -> bool | None:
         print("Ungültige Eingabe.")
 
 
-def print_title(title: str): 
+def print_title(title: str):
     """Prints a title, e.g. print_title("title")"""
     width = len(title) + 4
     border = "+" + "-" * width + "+"
@@ -676,16 +676,16 @@ def print_subtitle(title: str, size: int = 1, symbol: str = "=", start: str | No
     if size == 1:
         print(start + title.upper())
         print(symbol * width)
-    
+
     elif size == 2:
         print(start + title)
         print(symbol * width)
-    
+
     elif size == 3:
         text = f" {title.upper()} "
         width = max(width, len(text) + min_symbols * 2)
         print(start + text.center(width, symbol))
-    
+
     elif size == 4:
         text = f" {title} "
         width = max(width, len(text) + min_symbols * 2)
@@ -704,7 +704,7 @@ def print_menu(options: dict, title="", prompt="> ", start: str | None = None) -
 
         if start: print(start, end="")
         if title: print(title)
-        
+
         for key, label in options.items():
             print(f"[{key}] {label}")
 

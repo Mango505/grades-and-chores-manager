@@ -71,7 +71,7 @@ def main():
         print(f"Warnung: {args.wallet} ist korrupt. Es wird ein leeres Wallet geladen.")
     elif status == LoadStatus.OK and app_config.verbose_loading:
         print(f"Wallet geladen: {app_config.wallet_path}")
-    
+
     reward_config, status = load_reward_config(app_config.reward_config_path)
     if status == LoadStatus.MISSING:
         print(f"Warnung: {args.reward_config} existiert nicht. Es wird die Standardkonfiguration des Belohnungssystems geladen.")

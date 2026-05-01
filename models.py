@@ -26,10 +26,10 @@ class Subject:
     def __init__(self, name: str):
         self.name = name
         self.grades: list[Grade] = []
-    
+
     def add_grade(self, grade: Grade) -> None:
         self.grades.append(grade)
-    
+
     def remove_grade(self, index: int) -> None:
         self.grades.pop(index)
 
@@ -38,7 +38,7 @@ class Subject:
         if not self.grades:
             return 0.0
         return sum(g.value * g.weight for g in self.grades) / sum(g.weight for g in self.grades)
-    
+
     def average_by_label(self, labels: list[str], mode: str) -> float:
         """Weighted average of grades by filter."""
         if mode == "and":
