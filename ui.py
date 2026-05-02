@@ -211,6 +211,7 @@ def edit_grade(subjects: list[Subject], config: RewardConfig, wallet: Wallet) ->
                                     print(f"Aktueller Kontostand: {wallet.balance:.2f} €")
                             elif c2 is None:
                                 continue
+                    subject.remove_grade(int(grade_choice))
                     money_delta = -config.money_for_points(config.points_for_grade(grade.value)) if config.enabled else None
                     wallet.log_grade_event("-", subject.name, grade.value, grade.weight, grade.labels, money_delta)
                     print("Note gelöscht.")
@@ -339,10 +340,13 @@ def filter_by_label(subjects: list[Subject]) -> list[Subject]:
 
 
 def show_balance(config: RewardConfig, wallet: Wallet) -> tuple[RewardConfig, Wallet]:
-    print_subtitle("Kontoübersicht")
-    print(f"Aktueller Kontostand: {wallet.balance:.2f} €")
+    print_subtitle("Konto & Verlauf")
+    if config.enabled is True:
+        print(f"Aktueller Kontostand: {wallet.balance:.2f} €")
+    else:
+        print("Belohnungssystem deaktiviert.")
 
-    if wallet.redemptions:
+    if wallet.redemptions and config.enabled is True:
         print("\nLetzte Einlösungen:")
         for r in wallet.redemptions[-5:][::-1]:  # show last 5
             print(f"{r['description']} | -{r['cost']:.2f} € | {r.get('date','<unbekanntes Datum')}")
@@ -358,14 +362,18 @@ def show_balance(config: RewardConfig, wallet: Wallet) -> tuple[RewardConfig, Wa
         symbols = {"+": "Hinzugefügt", "-": "Gelöscht", "~": "Bearbeitet"}
         for e in wallet.grade_log[-5:][::-1]:
             labels_str = ", ".join(e["labels"]) or "<keine Labels>"
-            print(f"{symbols.get(e['action'], e['action'])} | {e['date']} | {e['subject']} | {e['value']} ({e['weight']:.1f}x) | {labels_str}" + f" | {e["money_delta"]} €" if config.enabled else "")
+            delta = f"+{e["money_delta"]}" if e["money_delta"] >= 0 else e["money_delta"]
+            print(f"{symbols.get(e['action'], e['action'])} | {e['date']} | {e['subject']} | {e['value']} ({e['weight']:.1f}x) | {labels_str}" + (f" | {delta} €" if config.enabled else ""))
         length = len(wallet.grade_log)
         if length > 5:
             c = confirm(f"\nSollen alle {length} Notenänderungen angezeigt werden?")
             if c is True:
                 for e in wallet.grade_log:
                     labels_str = ", ".join(e["labels"]) or "<keine Labels>"
-                    print(f"{symbols.get(e['action'], e['action'])} | {e['date']} | {e['subject']} | {e['value']} ({e['weight']:.1f}x) | {labels_str}" + f" | {e["money_delta"]} €" if config.enabled else "")
+                    delta = f"+{e["money_delta"]}" if e["money_delta"] >= 0 else e["money_delta"]
+                    print(f"{symbols.get(e['action'], e['action'])} | {e['date']} | {e['subject']} | {e['value']} ({e['weight']:.1f}x) | {labels_str}" + f" | {delta} €" if config.enabled else "")
+    else:
+        print("Keine Notenänderungen vorhanden.")
 
     return config, wallet
 
@@ -538,12 +546,6 @@ def configure_rewards(config: RewardConfig) -> RewardConfig:
                 # Return to configure rewards screen
             elif c is False:
                 print("Vorgang abgebrochen.")
-
-
-def _is_valid_path(path: str) -> bool:
-    """Check that a path contains no null bytes or Windows-illegal characters."""
-    invalid_chars = set('\0<>"|?*')
-    return bool(path) and not any(c in invalid_chars for c in path)
 
 
 def configure_paths(config: AppConfig) -> AppConfig:
@@ -763,3 +765,9 @@ def print_configuration(mode: str, config: AppConfig | RewardConfig, start: str 
     elif mode == "verbose_loading":
         status = "aktiviert" if config.verbose_loading else "deaktiviert"
         print(start + f"Status der Ladehinweise: {status}")
+
+
+def _is_valid_path(path: str) -> bool:
+    """Check that a path contains no null bytes or Windows-illegal characters."""
+    invalid_chars = set('\0<>"|?*')
+    return bool(path) and not any(c in invalid_chars for c in path)

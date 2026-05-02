@@ -84,13 +84,12 @@ def main():
     while True:
         menu = {"1": "Note hinzufügen"}
         menu["2"] = "Notenübersicht"
-        menu["3"] = "Nach Labels filtern"
-        menu["4"] = "Note bearbeiten"
-        menu["5"] = "Fach erstellen"
-        menu["6"] = "Fach löschen"
-        menu["7"] = "Konfiguration anpassen"
-        if reward_config.enabled:
-            menu["8"] = "Kontoübersicht"
+        menu["3"] = "Konto & Verlauf"
+        menu["4"] = "Nach Labels filtern"
+        menu["5"] = "Note bearbeiten"
+        menu["6"] = "Fach erstellen"
+        menu["7"] = "Fach löschen"
+        menu["8"] = "Konfiguration anpassen"
         if reward_config.enabled:
             menu["9"] = "Guthaben einlösen"
         menu["q"] = "Speichern & Beenden"
@@ -116,17 +115,17 @@ def main():
         elif choice == "2":
             show_overview(subjects)
         elif choice == "3":
-            filter_by_label(subjects)
-        elif choice == "4":
-            subjects, wallet = edit_grade(subjects, reward_config, wallet)
-        elif choice == "5":
-            create_subject(subjects)
-        elif choice == "6":
-            delete_subject(subjects)
-        elif choice == "7":
-            app_config, reward_config = edit_config(app_config, reward_config)
-        elif choice == "8":
             reward_config, wallet = show_balance(reward_config, wallet)
+        elif choice == "4":
+            filter_by_label(subjects)
+        elif choice == "5":
+            subjects, wallet = edit_grade(subjects, reward_config, wallet)
+        elif choice == "6":
+            create_subject(subjects)
+        elif choice == "7":
+            delete_subject(subjects)
+        elif choice == "8":
+            app_config, reward_config = edit_config(app_config, reward_config)
         elif choice == "9":
             redeem(wallet)
 
