@@ -1,5 +1,5 @@
 import argparse
-from ui import print_menu, print_title, confirm, add_grade, edit_grade, redeem, show_overview, filter_by_label, show_balance, create_subject, delete_subject, edit_config
+from ui import print_menu, print_title, confirm, add_grade, edit_grade, redeem, show_overview, filter_by_label, show_balance, create_subject, delete_subject, edit_config, show_statistics
 from storage import save_app_config, load_app_config, save_subjects, load_subjects, save_wallet, load_wallet, save_reward_config, load_reward_config, APPCONFIG_PATH, DATA_PATH, WALLET_PATH, REWARDCONFIG_PATH
 from models import LoadStatus
 
@@ -89,9 +89,10 @@ def main():
         menu["5"] = "Note bearbeiten"
         menu["6"] = "Fach erstellen"
         menu["7"] = "Fach löschen"
-        menu["8"] = "Konfiguration anpassen"
+        menu["8"] = "Statistiken ansehen"
+        menu["9"] = "Konfiguration anpassen" + ("\n|" if not reward_config.enabled else "")
         if reward_config.enabled:
-            menu["9"] = "Guthaben einlösen"
+            menu["10"] = "Guthaben einlösen\n|"
         menu["q"] = "Speichern & Beenden"
         menu["x"] = "Beenden ohne Speichern"
 
@@ -125,8 +126,10 @@ def main():
         elif choice == "7":
             delete_subject(subjects)
         elif choice == "8":
-            app_config, reward_config = edit_config(app_config, reward_config)
+            show_statistics(subjects, wallet, reward_config)
         elif choice == "9":
+            app_config, reward_config = edit_config(app_config, reward_config)
+        elif choice == "10":
             redeem(wallet)
 
 

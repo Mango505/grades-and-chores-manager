@@ -362,7 +362,8 @@ def show_balance(config: RewardConfig, wallet: Wallet) -> tuple[RewardConfig, Wa
         symbols = {"+": "Hinzugefügt", "-": "Gelöscht", "~": "Bearbeitet"}
         for e in wallet.grade_log[-5:][::-1]:
             labels_str = ", ".join(e["labels"]) or "<keine Labels>"
-            delta = f"+{e["money_delta"]}" if e["money_delta"] >= 0 else e["money_delta"]
+            if e["money_delta"] is not float: delta = "+0.0"
+            else: delta = f"+{e["money_delta"]}" if e["money_delta"] >= 0 else e["money_delta"]
             print(f"{symbols.get(e['action'], e['action'])} | {e['date']} | {e['subject']} | {e['value']} ({e['weight']:.1f}x) | {labels_str}" + (f" | {delta} €" if config.enabled else ""))
         length = len(wallet.grade_log)
         if length > 5:
@@ -427,6 +428,68 @@ def delete_subject(subjects: list[Subject]) -> list[Subject]:
 
         except ValueError:
             print("Ungültige Eingabe. Bitte eine Zahl eingeben.")
+
+
+def show_statistics(subjects: list[Subject], wallet: Wallet, config: RewardConfig) -> None:
+    print_subtitle("Statistiken")
+    if not subjects or not any(s.grades for s in subjects):
+        print("Keine Noten vorhanden.")
+        return
+
+    subjects_with_grades = [s for s in subjects if s.grades]
+
+    # Overall average
+    all_grades = [g for s in subjects_with_grades for g in s.grades]
+    total_avg = sum(g.value * g.weight for g in all_grades) / sum(g.weight for g in all_grades)
+    print(f"Gesamtdurchschnitt: {total_avg:.2f}")
+
+    # Best / worst subject
+    sorted_subjects = sorted(subjects_with_grades, key=lambda s: s.average())
+    print(f"Bestes Fach:        {sorted_subjects[0].name} ({sorted_subjects[0].average():.2f})")
+    print(f"Schlechtestes Fach: {sorted_subjects[-1].name} ({sorted_subjects[-1].average():.2f})")
+
+    # Best / worst grade (absolute)
+    best_grade  = min(all_grades, key=lambda g: g.value)
+    worst_grade = max(all_grades, key=lambda g: g.value)
+    best_subject  = next(s for s in subjects_with_grades if best_grade in s.grades)
+    worst_subject = next(s for s in subjects_with_grades if worst_grade in s.grades)
+    print(f"Beste Note:         {best_grade.value} in '{best_subject.name}'")
+    print(f"Schlechteste Note:  {worst_grade.value} in '{worst_subject.name}'")
+    
+    # Best improvement (first vs. last grade per subject, at least 2 grades)
+    improvements = []
+    for s in subjects_with_grades:
+        if len(s.grades) >= 2:
+            delta = s.grades[0].value - s.grades[-1].value  # positive = better (1 < 6)
+            improvements.append((s, delta))
+    if improvements:
+        best_improvement = max(improvements, key=lambda x: x[1])
+        s, delta = best_improvement
+        if delta > 0:
+            print(f"Beste Verbesserung: '{s.name}' ({s.grades[0].value:.1f} → {s.grades[-1].value:.1f}, -{delta:.1f})")
+
+    # Most used Labels
+    from collections import Counter
+    label_counts = Counter(l for g in all_grades for l in g.labels)
+    if label_counts:
+        top = label_counts.most_common(10)
+        print("Top Labels: " + ", ".join(f"{l} ({n}x)" for l, n in top))
+
+    # Grade distribution (for matplotlib)
+    distribution = {i: 0 for i in range(1, 7)}
+    for g in all_grades:
+        distribution[round(g.value)] += 1
+
+    # Wallet summary (only if rewards enabled)
+    if config.enabled:
+        total_redeemed = sum(r["cost"] for r in wallet.redemptions)
+        print(f"\nVerdient (Gesamt): {wallet.balance + total_redeemed:.2f} €")
+        print(f"Eingelöst:         {total_redeemed:.2f} €")
+        print(f"Restguthaben:      {wallet.balance:.2f} €")
+
+    # Graphs (matplotlib)
+    _plot_distribution(distribution)    # grade distribution
+    _plot_trends(subjects_with_grades)  # trend per subject
 
 
 def edit_config(app_config: AppConfig, reward_config: RewardConfig) -> tuple[AppConfig, RewardConfig]:
@@ -771,3 +834,73 @@ def _is_valid_path(path: str) -> bool:
     """Check that a path contains no null bytes or Windows-illegal characters."""
     invalid_chars = set('\0<>"|?*')
     return bool(path) and not any(c in invalid_chars for c in path)
+
+
+def _plot_distribution(distribution: dict) -> None:
+    try:
+        import matplotlib.pyplot as plt
+        fig, ax = plt.subplots()
+        ax.bar([str(k) for k in distribution], distribution.values(), color="#007d58")
+        ax.set_xlabel("Note")
+        ax.set_ylabel("Anzahl")
+        ax.set_title("Notenverteilung")
+        plt.tight_layout()
+        plt.show()
+    except ImportError:
+        print("(matplotlib nicht installiert - kein Graph verfügbar)")
+
+
+def _plot_trends(subjects_with_grades: list) -> None:
+    try:
+        import matplotlib.pyplot as plt
+        import numpy as np
+    except ImportError:
+        print("(matplotlib/numpy nicht installiert - kein Graph verfügbar)")
+        return
+
+    cols = 2
+    rows = (len(subjects_with_grades) + 1) // 2
+    fig, axes = plt.subplots(rows, cols, figsize=(10, rows * 3))
+    axes = axes.flatten() if hasattr(axes, 'flatten') else [axes]
+
+    for i, s in enumerate(subjects_with_grades):
+        ax = axes[i]
+        grades = [g.value for g in s.grades]
+        x = list(range(len(grades)))
+
+        ax.plot(x, grades, 'o-', color="#007d58", linewidth=2,
+                markersize=5, label="Noten")
+
+        # Trend line only if at least 2 points
+        if len(grades) >= 2:
+            m, b = np.polyfit(x, grades, 1)
+            trend = [m * xi + b for xi in x]
+            ax.plot(x, trend, '--', color="#a92285", linewidth=1.5, label="Trend")
+
+            # Trend direction in the title
+            if m < -0.1:    arrow = "↑"
+            elif m > 0.1:   arrow = "↓"
+            else:           arrow = "→"
+            ax.set_title(f"{s.name}  {arrow}  Ø {s.average():.2f}")
+        else:
+            ax.set_title(f"{s.name}  Ø {s.average():.2f}")
+
+        # Point labeling
+        for xi, yi in zip(x, grades):
+            ax.annotate(f"{yi:.1f}", (xi, yi), textcoords="offset points",
+                        xytext=(0, 8), ha="center", fontsize=8)
+
+        ax.set_ylim(6.3, 0.7)       # 1 = top (good), 6 = bottom (bad)
+        ax.set_yticks([1, 2, 3, 4, 5, 6])
+        ax.set_xticks(x)
+        ax.set_xticklabels(["" for j in x])
+        ax.grid(True, alpha=0.3, linestyle="--")
+        ax.legend(fontsize=8)
+
+    # Hide empty subplots
+    for j in range(len(subjects_with_grades), len(axes)):
+        axes[j].set_visible(False)
+
+    fig.suptitle("Notenverlauf & Trendlinien", fontsize=14, fontweight="bold")
+    plt.tight_layout()
+    plt.show()
