@@ -1,4 +1,5 @@
 from datetime import datetime
+from collections import Counter
 from models import Grade, Subject, Wallet, RewardConfig, AppConfig
 import copy
 
@@ -297,7 +298,7 @@ def filter_by_label(subjects: list[Subject]) -> list[Subject]:
 
     choice = print_menu({
         "1": "Es müssen alle Labels übereinstimmen",
-        "2": "Es muss mindestens ein Labels übereinstimmen"
+        "2": "Es muss mindestens ein Label übereinstimmen"
     }, "Wähle einen Filtermodus aus:")
     if choice == "1":
         mode = "and"
@@ -362,19 +363,28 @@ def show_balance(config: RewardConfig, wallet: Wallet) -> tuple[RewardConfig, Wa
         symbols = {"+": "Hinzugefügt", "-": "Gelöscht", "~": "Bearbeitet"}
         for e in wallet.grade_log[-5:][::-1]:
             labels_str = ", ".join(e["labels"]) or "<keine Labels>"
-            if e["money_delta"] is not float: delta = "+0.0"
-            else: delta = f"+{e["money_delta"]}" if e["money_delta"] >= 0 else e["money_delta"]
-            print(f"{symbols.get(e['action'], e['action'])} | {e['date']} | {e['subject']} | {e['value']} ({e['weight']:.1f}x) | {labels_str}" + (f" | {delta} €" if config.enabled else ""))
+            delta = e.get("money_delta")
+            if not isinstance(delta, (int, float)):
+                money_str = ""
+            else:
+                sign = "+" if delta >= 0 else ""
+                money_str = f" | {sign}{delta:.2f} €"
+            print(f"{symbols.get(e['action'], e['action'])} | {e['date']} | {e['subject']} | {e['value']} ({e['weight']:.1f}x) | {labels_str}" + money_str)
         length = len(wallet.grade_log)
         if length > 5:
             c = confirm(f"\nSollen alle {length} Notenänderungen angezeigt werden?")
             if c is True:
                 for e in wallet.grade_log:
                     labels_str = ", ".join(e["labels"]) or "<keine Labels>"
-                    delta = f"+{e["money_delta"]}" if e["money_delta"] >= 0 else e["money_delta"]
-                    print(f"{symbols.get(e['action'], e['action'])} | {e['date']} | {e['subject']} | {e['value']} ({e['weight']:.1f}x) | {labels_str}" + f" | {delta} €" if config.enabled else "")
+                    delta = e.get("money_delta")
+                    if not isinstance(delta, (int, float)):
+                        money_str = ""
+                    else:
+                        sign = "+" if delta >= 0 else ""
+                        money_str = f" | {sign}{delta:.2f} €"
+                    print(f"{symbols.get(e['action'], e['action'])} | {e['date']} | {e['subject']} | {e['value']} ({e['weight']:.1f}x) | {labels_str}" + money_str)
     else:
-        print("Keine Notenänderungen vorhanden.")
+        print("\nKeine Notenänderungen vorhanden.")
 
     return config, wallet
 
@@ -443,6 +453,15 @@ def show_statistics(subjects: list[Subject], wallet: Wallet, config: RewardConfi
     total_avg = sum(g.value * g.weight for g in all_grades) / sum(g.weight for g in all_grades)
     print(f"Gesamtdurchschnitt: {total_avg:.2f}")
 
+    # Number of registered grades
+    print(f"Anzahl gespeicherte Noten (Gesamt): {len(all_grades)}")
+
+    # Most used Labels
+    label_counts = Counter(l for g in all_grades for l in g.labels if l is not "")
+    if label_counts:
+        top = label_counts.most_common(3)
+        print("Top Labels:         " + ", ".join(f"{l} ({n}x)" for l, n in top))
+
     # Best / worst subject
     sorted_subjects = sorted(subjects_with_grades, key=lambda s: s.average())
     print(f"Bestes Fach:        {sorted_subjects[0].name} ({sorted_subjects[0].average():.2f})")
@@ -455,25 +474,9 @@ def show_statistics(subjects: list[Subject], wallet: Wallet, config: RewardConfi
     worst_subject = next(s for s in subjects_with_grades if worst_grade in s.grades)
     print(f"Beste Note:         {best_grade.value} in '{best_subject.name}'")
     print(f"Schlechteste Note:  {worst_grade.value} in '{worst_subject.name}'")
-    
-    # Best improvement (first vs. last grade per subject, at least 2 grades)
-    improvements = []
-    for s in subjects_with_grades:
-        if len(s.grades) >= 2:
-            delta = s.grades[0].value - s.grades[-1].value  # positive = better (1 < 6)
-            improvements.append((s, delta))
-    if improvements:
-        best_improvement = max(improvements, key=lambda x: x[1])
-        s, delta = best_improvement
-        if delta > 0:
-            print(f"Beste Verbesserung: '{s.name}' ({s.grades[0].value:.1f} → {s.grades[-1].value:.1f}, -{delta:.1f})")
 
-    # Most used Labels
-    from collections import Counter
-    label_counts = Counter(l for g in all_grades for l in g.labels)
-    if label_counts:
-        top = label_counts.most_common(10)
-        print("Top Labels: " + ", ".join(f"{l} ({n}x)" for l, n in top))
+    # Best improvement (penultimate vs. last average per subject, at least 2 grades)
+    _best_trends(subjects_with_grades)
 
     # Grade distribution (for matplotlib)
     distribution = {i: 0 for i in range(1, 7)}
@@ -860,7 +863,7 @@ def _plot_trends(subjects_with_grades: list) -> None:
 
     cols = 2
     rows = (len(subjects_with_grades) + 1) // 2
-    fig, axes = plt.subplots(rows, cols, figsize=(10, rows * 3))
+    fig, axes = plt.subplots(rows, cols, figsize=(10, rows * 2))
     axes = axes.flatten() if hasattr(axes, 'flatten') else [axes]
 
     for i, s in enumerate(subjects_with_grades):
@@ -881,7 +884,7 @@ def _plot_trends(subjects_with_grades: list) -> None:
             if m < -0.1:    arrow = "↑"
             elif m > 0.1:   arrow = "↓"
             else:           arrow = "→"
-            ax.set_title(f"{s.name}  {arrow}  Ø {s.average():.2f}")
+            ax.set_title(f"{s.name}   {arrow}   Ø {s.average():.2f}")
         else:
             ax.set_title(f"{s.name}  Ø {s.average():.2f}")
 
@@ -904,3 +907,31 @@ def _plot_trends(subjects_with_grades: list) -> None:
     fig.suptitle("Notenverlauf & Trendlinien", fontsize=14, fontweight="bold")
     plt.tight_layout()
     plt.show()
+
+
+def _best_trends(subjects_with_grades: list) -> None:
+    try:
+        import numpy as np
+    except ImportError:
+        print("(numpy nicht installiert - Stärkste Verbesserung/Verschlechterung nicht verfügbar)")
+        return
+
+    improvements = []
+    for s in subjects_with_grades:
+        if len(s.grades) < 2:
+            continue
+        x = list(range(len(s.grades)))
+        y = [g.value for g in s.grades]
+        m, _ = np.polyfit(x, y, 1)
+        improvements.append((s, m))
+
+    if improvements:
+        # m negative = grade smaller = improvement
+        most_improved = min(improvements, key=lambda t: t[1])
+        most_declined = max(improvements, key=lambda t: t[1])
+        s, m = most_improved
+        if m < 0:
+            print(f"Stärkste Verbesserung:     '{s.name}' (Trend: {m:+.2f} pro Note)")
+        s2, m2 = most_declined
+        if m2 > 0:
+            print(f"Stärkste Verschlechterung: '{s2.name}' (Trend: {m2:+.2f} pro Note)")
