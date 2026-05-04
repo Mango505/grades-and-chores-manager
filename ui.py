@@ -1,7 +1,8 @@
 from datetime import datetime
 from collections import Counter
-from models import Grade, Subject, Wallet, RewardConfig, AppConfig
 import copy
+import os
+from models import Grade, Subject, Wallet, RewardConfig, AppConfig
 
 # --- Basic functions ---
 
@@ -460,7 +461,7 @@ def show_statistics(subjects: list[Subject], wallet: Wallet, config: RewardConfi
     print(f"Anzahl gespeicherte Noten (Gesamt): {len(all_grades)}")
 
     # Most used Labels
-    label_counts = Counter(l for g in all_grades for l in g.labels if l is not "")
+    label_counts = Counter(l for g in all_grades for l in g.labels if l != "")
     if label_counts:
         top = label_counts.most_common(3)
         print("Top Labels:         " + ", ".join(f"{l} ({n}x)" for l, n in top))
@@ -489,13 +490,168 @@ def show_statistics(subjects: list[Subject], wallet: Wallet, config: RewardConfi
     # Wallet summary (only if rewards enabled)
     if config.enabled:
         total_redeemed = sum(r["cost"] for r in wallet.redemptions)
-        print(f"\nVerdient (Gesamt): {wallet.balance + total_redeemed:.2f} €")
-        print(f"Eingelöst:         {total_redeemed:.2f} €")
-        print(f"Restguthaben:      {wallet.balance:.2f} €")
+        print(f"\nVerdient:   {wallet.balance + total_redeemed:.2f} €")
+        print(f"Eingelöst:    {total_redeemed:.2f} €")
+        print(f"Restguthaben: {wallet.balance:.2f} €")
 
     # Graphs (matplotlib)
     _plot_distribution(distribution)    # grade distribution
     _plot_trends(subjects_with_grades)  # trend per subject
+
+
+def export_statistics(subjects: list[Subject], wallet: Wallet, config: RewardConfig) -> None:
+    print_subtitle("Statistiken exportieren")
+    if not subjects or not any(s.grades for s in subjects):
+        print("Keine Noten vorhanden.")
+        return
+
+    label = input("Export-Label eingeben (z.B. '3. Quartal - Mai 2026') oder leerlassen: ").strip()
+    label = label if label else "Kein Label"
+
+    filename = f"export_{datetime.now().strftime('%Y%m%d_%H%M')}.txt"
+
+    lines = []
+    lines.append(f"NOTENRECHNER EXPORT")
+    lines.append(f"Label:    {label}")
+    lines.append(f"Erstellt: {datetime.now().strftime('%d.%m.%Y %H:%M')}")
+    lines.append("=" * 40)
+
+    subjects_with_grades = [s for s in subjects if s.grades]
+
+    # Overall average
+    all_grades = [g for s in subjects_with_grades for g in s.grades]
+    if all_grades:
+        total_avg = sum(g.value * g.weight for g in all_grades) / sum(g.weight for g in all_grades)
+        lines.append(f"Gesamtdurchschnitt: {total_avg:.2f}")
+
+    # Number of registered grades
+    lines.append(f"Anzahl gespeicherte Noten (Gesamt): {len(all_grades)}")
+
+    # Most used Labels
+    label_counts = Counter(l for g in all_grades for l in g.labels if l != "")
+    if label_counts:
+        top = label_counts.most_common(3)
+        lines.append("Top Labels:         " + ", ".join(f"{l} ({n}x)" for l, n in top))
+    
+    # Best / worst subject
+    sorted_subjects = sorted(subjects_with_grades, key=lambda s: s.average())
+    lines.append(f"Bestes Fach:        {sorted_subjects[0].name} ({sorted_subjects[0].average():.2f})")
+    lines.append(f"Schlechtestes Fach: {sorted_subjects[-1].name} ({sorted_subjects[-1].average():.2f})")
+
+    # Best / worst grade (absolute)
+    best_grade  = min(all_grades, key=lambda g: g.value)
+    worst_grade = max(all_grades, key=lambda g: g.value)
+    best_subject  = next(s for s in subjects_with_grades if best_grade in s.grades)
+    worst_subject = next(s for s in subjects_with_grades if worst_grade in s.grades)
+    lines.append(f"Beste Note:         {best_grade.value} in '{best_subject.name}'")
+    lines.append(f"Schlechteste Note:  {worst_grade.value} in '{worst_subject.name}'")
+
+    # Best improvement (penultimate vs. last average per subject, at least 2 grades)
+    string1, string2 = _best_trends(subjects_with_grades, True)
+    if string1: lines.append(string1)
+    if string2: lines.append(string2)
+    lines.append("")
+
+    # Wallet
+    if config.enabled:
+        total_redeemed = sum(r["cost"] for r in wallet.redemptions)
+        lines.append(f"Verdient:     {wallet.balance + total_redeemed:.2f} €")
+        lines.append(f"Eingelöst:    {total_redeemed:.2f} €")
+        lines.append(f"Restguthaben: {wallet.balance:.2f} €")
+    lines.append("")
+
+    # Per subject
+    for s in subjects:
+        lines.append(f"Fach: {s.name} | Ø {s.average():.2f}")
+        for g in s.grades:
+            labels_str = ", ".join(g.labels) or "<keine Labels>"
+            lines.append(f"  {g.value} | {g.weight:.1f}x | {labels_str}")
+        lines.append("")
+
+    lines.append(f"[EXPORT_LABEL={label}]")  # machine-readable for comparison
+
+    with open(filename, "w", encoding="utf-8") as f:
+        f.write("\n".join(lines))
+
+    print(f"Exportiert als: {filename}")
+
+
+def compare_exports() -> None:
+    print_subtitle("Exporte vergleichen")
+
+    file1 = input("Pfad zur ersten Export-Datei: ").strip()
+    file2 = input("Pfad zur zweiten Export-Datei: ").strip()
+
+    try:
+        data1 = _parse_export(file1)
+        data2 = _parse_export(file2)
+    except FileNotFoundError as e:
+        print(f"Datei nicht gefunden: {e}")
+        return
+    except ValueError as e:
+        print(f"Ungültige Export-Datei: {e}")
+        return
+
+    label1 = data1["label"]
+    label2 = data2["label"]
+    col = 28
+
+    def row(title, v1, v2, diff=""):
+        print(f"{title:<22} {str(v1):<{col}} {str(v2):<{col}} {diff}")
+
+    print(f"\n{'':22} {label1:<{col}} {label2:<{col}}")
+    print("-" * (22 + col * 2 + 2))
+
+    # Overall average
+    avg1, avg2 = data1.get("overall_avg"), data2.get("overall_avg")
+    diff = ""
+    if isinstance(avg1, float) and isinstance(avg2, float):
+        d = avg2 - avg1
+        diff = f"({'besser' if d < 0 else 'schlechter' if d > 0 else 'gleich'}: {d:+.2f})"
+    row("Gesamtschnitt", avg1 or "N/A", avg2 or "N/A", diff)
+
+    # Grade count
+    gc1, gc2 = data1.get("grade_count"), data2.get("grade_count")
+    diff = ""
+    if isinstance(gc1, int) and isinstance(gc2, int):
+        d = gc2 - gc1
+        diff = f"({d:+d})"
+    row("Anz. Noten", gc1 or "N/A", gc2 or "N/A", diff)
+
+    # Best / worst subject & grade
+    row("Bestes Fach",        data1.get("best_subject")  or "N/A", data2.get("best_subject")  or "N/A")
+    row("Schlechtestes Fach", data1.get("worst_subject") or "N/A", data2.get("worst_subject") or "N/A")
+    row("Beste Note",         data1.get("best_grade")    or "N/A", data2.get("best_grade")    or "N/A")
+    row("Schlechteste Note",  data1.get("worst_grade")   or "N/A", data2.get("worst_grade")   or "N/A")
+    row("Top Labels",         data1.get("top_labels")    or "—",   data2.get("top_labels")    or "—")
+
+    # Per-subject averages
+    print()
+    print(f"  {'Fach':<20} {label1:<{col}} {label2:<{col}}")
+    print("  " + "-" * (20 + col * 2))
+    all_subjects = sorted(set(data1["subjects"]) | set(data2["subjects"]))
+    changes = []
+    for name in all_subjects:
+        a1 = data1["subjects"].get(name)
+        a2 = data2["subjects"].get(name)
+        s1 = f"{a1:.2f}" if a1 is not None else "—"
+        s2 = f"{a2:.2f}" if a2 is not None else "—"
+        diff = ""
+        if a1 is not None and a2 is not None:
+            d = a2 - a1
+            diff = f"({'↑' if d < 0 else '↓' if d > 0 else '→'} {abs(d):.2f})"
+            changes.append((name, d))
+        print(f"  {name:<20} {s1:<{col}} {s2:<{col}} {diff}")
+
+    # Most improved / most declined subject
+    if changes:
+        print()
+        most_improved = min(changes, key=lambda t: t[1])
+        most_declined = max(changes, key=lambda t: t[1])
+        if most_improved[1] < 0:
+            print(f"Stärkste Verbesserung:     '{most_improved[0]}' ({most_improved[1]:+.2f})")
+        if most_declined[1] > 0:
+            print(f"Stärkste Verschlechterung: '{most_declined[0]}' ({most_declined[1]:+.2f})")
 
 
 def edit_config(app_config: AppConfig, reward_config: RewardConfig) -> tuple[AppConfig, RewardConfig]:
@@ -912,7 +1068,7 @@ def _plot_trends(subjects_with_grades: list) -> None:
     plt.show()
 
 
-def _best_trends(subjects_with_grades: list) -> None:
+def _best_trends(subjects_with_grades: list, return_str: bool = False) -> None | tuple[str, str]:
     try:
         import numpy as np
     except ImportError:
@@ -928,13 +1084,71 @@ def _best_trends(subjects_with_grades: list) -> None:
         m, _ = np.polyfit(x, y, 1)
         improvements.append((s, m))
 
+    string1 = ""
+    string2 = ""
     if improvements:
         # m negative = grade smaller = improvement
         most_improved = min(improvements, key=lambda t: t[1])
         most_declined = max(improvements, key=lambda t: t[1])
         s, m = most_improved
         if m < 0:
-            print(f"Stärkste Verbesserung:     '{s.name}' (Trend: {m:+.2f} pro Note)")
+            string1 = f"Stärkste Verbesserung:     '{s.name}' (Trend: {m:+.2f} pro Note)"
+            if not return_str:
+                print(string1)
         s2, m2 = most_declined
         if m2 > 0:
-            print(f"Stärkste Verschlechterung: '{s2.name}' (Trend: {m2:+.2f} pro Note)")
+            string2 = f"Stärkste Verschlechterung: '{s2.name}' (Trend: {m2:+.2f} pro Note)"
+            if not return_str:
+                print(string2)
+    
+    if return_str: return string1, string2
+
+
+def _parse_export(path: str) -> dict:
+    if not os.path.exists(path):
+        raise FileNotFoundError(path)
+
+    with open(path, "r", encoding="utf-8") as f:
+        content = f.read()
+
+    lines = content.splitlines()
+    result = {
+        "label": "Unbekannt",
+        "subjects": {},
+        "overall_avg": None,
+        "grade_count": None,
+        "top_labels": None,
+        "best_subject": None,
+        "worst_subject": None,
+        "best_grade": None,
+        "worst_grade": None,
+    }
+
+    for line in lines:
+        if line.startswith("Label:"):
+            result["label"] = line.split(":", 1)[1].strip()
+        elif line.startswith("Gesamtdurchschnitt:"):
+            try: result["overall_avg"] = float(line.split(":")[1].strip())
+            except ValueError: pass
+        elif line.startswith("Anzahl"):
+            try: result["grade_count"] = int(line.split(":")[1].strip())
+            except ValueError: pass
+        elif line.startswith("Top Labels:"):
+            result["top_labels"] = line.split(":", 1)[1].strip()
+        elif line.startswith("Bestes Fach:"):
+            result["best_subject"] = line.split(":", 1)[1].strip()
+        elif line.startswith("Schlechtestes Fach:"):
+            result["worst_subject"] = line.split(":", 1)[1].strip()
+        elif line.startswith("Beste Note:"):
+            result["best_grade"] = line.split(":", 1)[1].strip()
+        elif line.startswith("Schlechteste Note:"):
+            result["worst_grade"] = line.split(":", 1)[1].strip()
+        elif line.startswith("Fach:"):
+            parts = line.split("|")
+            name = parts[0].replace("Fach:", "").strip()
+            try:
+                avg = float(parts[1].replace("Ø", "").strip())
+                result["subjects"][name] = avg
+            except (ValueError, IndexError): pass
+
+    return result
