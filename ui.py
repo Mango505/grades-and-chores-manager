@@ -255,7 +255,6 @@ def redeem(wallet: Wallet) -> Wallet:
             elif c is False:
                 print("Vorgang abgebrochen.")
                 return wallet
-            continue
 
         except ValueError:
             print("Ungültige Eingabe. Bitte eine Zahl eingeben.")
@@ -298,12 +297,15 @@ def filter_by_label(subjects: list[Subject]) -> list[Subject]:
 
     choice = print_menu({
         "1": "Es müssen alle Labels übereinstimmen",
-        "2": "Es muss mindestens ein Label übereinstimmen"
+        "2": "Es muss mindestens ein Label übereinstimmen",
+        "z": "Zurück"
     }, "Wähle einen Filtermodus aus:")
     if choice == "1":
         mode = "and"
     elif choice == "2":
         mode = "or"
+    else:
+        return subjects
 
     raw_labels = input("Nach welchen Labels möchtest du filtern (Komma als Trennzeichen)? ").strip()
     if not raw_labels:
@@ -350,13 +352,14 @@ def show_balance(config: RewardConfig, wallet: Wallet) -> tuple[RewardConfig, Wa
     if wallet.redemptions and config.enabled is True:
         print("\nLetzte Einlösungen:")
         for r in wallet.redemptions[-5:][::-1]:  # show last 5
-            print(f"{r['description']} | -{r['cost']:.2f} € | {r.get('date','<unbekanntes Datum')}")
+            print(f"{r['description']} | -{r['cost']:.2f} € | {r.get('date','<unbekanntes Datum>')}")
         length = len(wallet.redemptions)
         if length > 5:
             c = confirm(f"\nSollen alle {length} Einlösungen angezeigt werden?")
             if c is True:
                 for r in wallet.redemptions:    # show all, including previously shown
-                    print(f"{r['description']} | -{r['cost']:.2f} € | {r.get('date','<unbekanntes Datum')}")
+                    print(f"{r['description']} | -{r['cost']:.2f} € | {r.get('date','<unbekanntes Datum>')}")
+            if c is None: return config, wallet
 
     if wallet.grade_log:
         print("\nLetzte Notenänderungen:")
@@ -718,9 +721,9 @@ def confirm(message: str, prompt: str = " 'J'/'N'/'Z': ") -> bool | None:
         if choice in ["ja", "j"]:
             return True
         if choice in ["nein", "n"]:
-            return False
+            return False    # caller should treat as "abort"
         if choice in ["zurück", "z"]:
-            return None    # caller should treat as "back"
+            return None     # caller should treat as "back to previous menu (in which you can go back further)"
         print("Ungültige Eingabe.")
 
 
