@@ -227,3 +227,6 @@ $RECYCLE.BIN/
 
 ### Qodo AI ###
 .qodo/
+
+### Raspberry Pi Stuff ###
+.lgd-nfy0

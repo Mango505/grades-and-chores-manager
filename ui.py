@@ -358,7 +358,7 @@ def show_balance(config: RewardConfig, wallet: Wallet) -> tuple[RewardConfig, Wa
         if length > 5:
             c = confirm(f"\nSollen alle {length} Einlösungen angezeigt werden?")
             if c is True:
-                for r in wallet.redemptions:    # show all, including previously shown
+                for r in wallet.redemptions[::-1]:    # show all, including previously shown
                     print(f"{r['description']} | -{r['cost']:.2f} € | {r.get('date','<unbekanntes Datum>')}")
             if c is None: return config, wallet
 
@@ -378,7 +378,7 @@ def show_balance(config: RewardConfig, wallet: Wallet) -> tuple[RewardConfig, Wa
         if length > 5:
             c = confirm(f"\nSollen alle {length} Notenänderungen angezeigt werden?")
             if c is True:
-                for e in wallet.grade_log:
+                for e in wallet.grade_log[::-1]:
                     labels_str = ", ".join(e["labels"]) or "<keine Labels>"
                     delta = e.get("money_delta")
                     if not isinstance(delta, (int, float)):
@@ -532,7 +532,7 @@ def export_statistics(subjects: list[Subject], wallet: Wallet, config: RewardCon
     if label_counts:
         top = label_counts.most_common(3)
         lines.append("Top Labels:         " + ", ".join(f"{l} ({n}x)" for l, n in top))
-    
+
     # Best / worst subject
     sorted_subjects = sorted(subjects_with_grades, key=lambda s: s.average())
     lines.append(f"Bestes Fach:        {sorted_subjects[0].name} ({sorted_subjects[0].average():.2f})")
@@ -1100,7 +1100,7 @@ def _best_trends(subjects_with_grades: list, return_str: bool = False) -> None |
             string2 = f"Stärkste Verschlechterung: '{s2.name}' (Trend: {m2:+.2f} pro Note)"
             if not return_str:
                 print(string2)
-    
+
     if return_str: return string1, string2
 
 
