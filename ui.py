@@ -623,7 +623,29 @@ def compare_exports() -> None:
     row("Schlechtestes Fach", data1.get("worst_subject") or "N/A", data2.get("worst_subject") or "N/A")
     row("Beste Note",         data1.get("best_grade")    or "N/A", data2.get("best_grade")    or "N/A")
     row("Schlechteste Note",  data1.get("worst_grade")   or "N/A", data2.get("worst_grade")   or "N/A")
-    row("Top Labels",         data1.get("top_labels")    or "—",   data2.get("top_labels")    or "—")
+
+    # Top labels
+    print(f"{'Top Labels':<23}", end="")
+    tl1_lines = (data1.get("top_labels") or "—").split(", ")
+    tl2_lines = (data2.get("top_labels") or "—").split(", ")
+
+    # chunk into col-width pieces
+    def chunk(items, width):
+        lines, cur = [], ""
+        for item in items:
+            test = cur + (", " if cur else "") + item
+            if len(test) <= width: cur = test
+            else: lines.append(cur); cur = item
+        if cur: lines.append(cur)
+        return lines or ["—"]
+
+    c1 = chunk(tl1_lines, col)
+    c2 = chunk(tl2_lines, col)
+    for i in range(max(len(c1), len(c2))):
+        prefix = " " * 23 if i > 0 else ""
+        v1 = c1[i] if i < len(c1) else ""
+        v2 = c2[i] if i < len(c2) else ""
+        print(f"{prefix}{v1:<{col}} {v2:<{col}}")
 
     # Per-subject averages
     print()
@@ -1152,3 +1174,23 @@ def _parse_export(path: str) -> dict:
             except (ValueError, IndexError): pass
 
     return result
+
+
+def _wrap(text: str, width: int, indent: int = 22) -> str:
+    """Wrap text to width, subsequent lines indented by indent + col spaces."""
+    if len(text) <= width:
+        return text
+    words = text.split(", ")
+    lines = []
+    current = ""
+    for word in words:
+        test = current + (", " if current else "") + word
+        if len(test) <= width:
+            current = test
+        else:
+            lines.append(current)
+            current = word
+    if current:
+        lines.append(current)
+    pad = " " * (indent + width)  # align with second column start
+    return f"\n{pad}".join(lines)
