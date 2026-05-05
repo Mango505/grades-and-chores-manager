@@ -1,5 +1,5 @@
 import argparse
-from ui import print_menu, print_title, confirm, add_grade, edit_grade, redeem, show_overview, filter_by_label, show_balance, create_subject, delete_subject, edit_config, show_statistics, export_statistics, compare_exports
+from ui import print_menu, print_title, confirm, add_grade, edit_grade, redeem, show_overview, filter_by_label, show_balance, create_subject, delete_subject, edit_config, show_statistics, export, compare_exports
 from storage import save_app_config, load_app_config, save_subjects, load_subjects, save_wallet, load_wallet, save_reward_config, load_reward_config, APPCONFIG_PATH, DATA_PATH, WALLET_PATH, REWARDCONFIG_PATH
 from models import LoadStatus
 
@@ -130,7 +130,7 @@ def main():
         elif choice == "8":
             show_statistics(subjects, wallet, reward_config)
         elif choice == "9":
-            export_statistics(subjects, wallet, reward_config)
+            export(subjects, wallet, reward_config)
         elif choice == "10":
             compare_exports()
         elif choice == "11":

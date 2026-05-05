@@ -499,7 +499,7 @@ def show_statistics(subjects: list[Subject], wallet: Wallet, config: RewardConfi
     _plot_trends(subjects_with_grades)  # trend per subject
 
 
-def export_statistics(subjects: list[Subject], wallet: Wallet, config: RewardConfig) -> None:
+def export(subjects: list[Subject], wallet: Wallet, config: RewardConfig) -> None:
     print_subtitle("Statistiken exportieren")
     if not subjects or not any(s.grades for s in subjects):
         print("Keine Noten vorhanden.")
@@ -514,61 +514,97 @@ def export_statistics(subjects: list[Subject], wallet: Wallet, config: RewardCon
     lines.append(f"NOTENRECHNER EXPORT")
     lines.append(f"Label:    {label}")
     lines.append(f"Erstellt: {datetime.now().strftime('%d.%m.%Y %H:%M')}")
-    lines.append("=" * 40)
 
     subjects_with_grades = [s for s in subjects if s.grades]
 
-    # Overall average
-    all_grades = [g for s in subjects_with_grades for g in s.grades]
-    if all_grades:
-        total_avg = sum(g.value * g.weight for g in all_grades) / sum(g.weight for g in all_grades)
-        lines.append(f"Gesamtdurchschnitt: {total_avg:.2f}")
+    choice = print_menu_multi({
+        "1": "Statistiken",
+        "2": "Noten pro Fach",
+        "3": "Notenänderungen (Verlauf)",
+        "4": "Einlösungen",
+        "z": "Zurück"
+    }, "Was möchtest du exportieren?")
 
-    # Number of registered grades
-    lines.append(f"Anzahl gespeicherte Noten (Gesamt): {len(all_grades)}")
+    if not choice:
+        return  # user pressed z
 
-    # Most used Labels
-    label_counts = Counter(l for g in all_grades for l in g.labels if l != "")
-    if label_counts:
-        top = label_counts.most_common(3)
-        lines.append("Top Labels:         " + ", ".join(f"{l} ({n}x)" for l, n in top))
+    if "1" in choice:   # Stats
+        lines.append(print_subtitle("Statistiken", 4, width=40, return_str=True))
+        # Overall average
+        all_grades = [g for s in subjects_with_grades for g in s.grades]
+        if all_grades:
+            total_avg = sum(g.value * g.weight for g in all_grades) / sum(g.weight for g in all_grades)
+            lines.append(f"Gesamtdurchschnitt: {total_avg:.2f}")
 
-    # Best / worst subject
-    sorted_subjects = sorted(subjects_with_grades, key=lambda s: s.average())
-    lines.append(f"Bestes Fach:        {sorted_subjects[0].name} ({sorted_subjects[0].average():.2f})")
-    lines.append(f"Schlechtestes Fach: {sorted_subjects[-1].name} ({sorted_subjects[-1].average():.2f})")
+        # Number of registered grades
+        lines.append(f"Anzahl gespeicherte Noten (Gesamt): {len(all_grades)}")
 
-    # Best / worst grade (absolute)
-    best_grade  = min(all_grades, key=lambda g: g.value)
-    worst_grade = max(all_grades, key=lambda g: g.value)
-    best_subject  = next(s for s in subjects_with_grades if best_grade in s.grades)
-    worst_subject = next(s for s in subjects_with_grades if worst_grade in s.grades)
-    lines.append(f"Beste Note:         {best_grade.value} in '{best_subject.name}'")
-    lines.append(f"Schlechteste Note:  {worst_grade.value} in '{worst_subject.name}'")
+        # Most used Labels
+        label_counts = Counter(l for g in all_grades for l in g.labels if l != "")
+        if label_counts:
+            top = label_counts.most_common(3)
+            lines.append("Top Labels:         " + ", ".join(f"{l} ({n}x)" for l, n in top))
 
-    # Best improvement (penultimate vs. last average per subject, at least 2 grades)
-    string1, string2 = _best_trends(subjects_with_grades, True)
-    if string1: lines.append(string1)
-    if string2: lines.append(string2)
-    lines.append("")
+        # Best / worst subject
+        sorted_subjects = sorted(subjects_with_grades, key=lambda s: s.average())
+        lines.append(f"Bestes Fach:        {sorted_subjects[0].name} ({sorted_subjects[0].average():.2f})")
+        lines.append(f"Schlechtestes Fach: {sorted_subjects[-1].name} ({sorted_subjects[-1].average():.2f})")
 
-    # Wallet
-    if config.enabled:
-        total_redeemed = sum(r["cost"] for r in wallet.redemptions)
-        lines.append(f"Verdient:     {wallet.balance + total_redeemed:.2f} €")
-        lines.append(f"Eingelöst:    {total_redeemed:.2f} €")
-        lines.append(f"Restguthaben: {wallet.balance:.2f} €")
-    lines.append("")
+        # Best / worst grade (absolute)
+        best_grade  = min(all_grades, key=lambda g: g.value)
+        worst_grade = max(all_grades, key=lambda g: g.value)
+        best_subject  = next(s for s in subjects_with_grades if best_grade in s.grades)
+        worst_subject = next(s for s in subjects_with_grades if worst_grade in s.grades)
+        lines.append(f"Beste Note:         {best_grade.value} in '{best_subject.name}'")
+        lines.append(f"Schlechteste Note:  {worst_grade.value} in '{worst_subject.name}'")
 
-    # Per subject
-    for s in subjects:
-        lines.append(f"Fach: {s.name} | Ø {s.average():.2f}")
-        for g in s.grades:
-            labels_str = ", ".join(g.labels) or "<keine Labels>"
-            lines.append(f"  {g.value} | {g.weight:.1f}x | {labels_str}")
-        lines.append("")
+        # Best improvement (penultimate vs. last average per subject, at least 2 grades)
+        string1, string2 = _best_trends(subjects_with_grades, True)
+        if string1: lines.append(string1)
+        if string2: lines.append(string2)
 
-    lines.append(f"[EXPORT_LABEL={label}]")  # machine-readable for comparison
+        # Wallet
+        if config.enabled:
+            lines.append("")
+            total_redeemed = sum(r["cost"] for r in wallet.redemptions)
+            lines.append(f"Verdient:     {wallet.balance + total_redeemed:.2f} €")
+            lines.append(f"Eingelöst:    {total_redeemed:.2f} €")
+            lines.append(f"Restguthaben: {wallet.balance:.2f} €")
+
+    if "2" in choice:   # Grades per subject
+        lines.append(print_subtitle("Noten pro Fach", 4, width=40, return_str=True))
+        for s in subjects:
+            lines.append(f"Fach: {s.name} | Ø {s.average():.2f}")
+            for g in s.grades:
+                labels_str = ", ".join(g.labels) or "<keine Labels>"
+                lines.append(f"  {g.value} | {g.weight:.1f}x | {labels_str}")
+            lines.append("")
+
+    if "3" in choice:   # Grade log
+        lines.append(print_subtitle("Notenänderungen", 4, width=40, return_str=True))
+        if wallet.grade_log:
+            symbols = {"+": "Hinzugefügt", "-": "Gelöscht", "~": "Bearbeitet"}
+            for e in wallet.grade_log[::-1]:
+                labels_str = ", ".join(e["labels"]) or "<keine Labels>"
+                delta = e.get("money_delta")
+                if not isinstance(delta, (int, float)):
+                    money_str = ""
+                else:
+                    sign = "+" if delta >= 0 else ""
+                    money_str = f" | {sign}{delta:.2f} €"
+                lines.append(f"{symbols.get(e['action'], e['action'])} | {e['date']} | {e['subject']} | {e['value']} ({e['weight']:.1f}x) | {labels_str}" + money_str)
+        else:
+            lines.append("Keine")
+
+    if "4" in choice:   # Redemptions
+        lines.append(print_subtitle("Einlösungen", 4, width=40, return_str=True))
+        if wallet.redemptions and config.enabled:
+            for r in wallet.redemptions[::-1]:
+                lines.append(f"{r['description']} | -{r['cost']:.2f} € | {r.get('date','<unbekanntes Datum>')}")
+        else:
+            lines.append("Keine")
+
+    lines.append(f"\n[EXPORT_LABEL={label}]")  # machine-readable for comparison
 
     with open(filename, "w", encoding="utf-8") as f:
         f.write("\n".join(lines))
@@ -915,30 +951,41 @@ def print_title(title: str):
     print(border)
 
 
-def print_subtitle(title: str, size: int = 1, symbol: str = "=", start: str | None = "\n", width = 30, min_symbols = 3):
+def print_subtitle(title: str, size: int = 1, symbol: str = "=", start: str | None = "\n", width = 30, min_symbols = 3, return_str: bool = False) -> None | str:
     """
         Prints a subtitle, e.g. print_subtitle("subtitle"). A bigger size value means smaller subtitle, so smallest size is 4, biggest is 1.
         \nmin_symbols only needed for sizes 3 and 4.
+        \nreturn_str returns a string for sizes 3 and 4.
     """
     start = start if start else ""
 
     if size == 1:
-        print(start + title.upper())
-        print(symbol * width)
+        if not return_str:
+            print(start + title.upper())
+            print(symbol * width)
 
     elif size == 2:
-        print(start + title)
-        print(symbol * width)
+        if not return_str:
+            print(start + title)
+            print(symbol * width)
 
     elif size == 3:
         text = f" {title.upper()} "
         width = max(width, len(text) + min_symbols * 2)
-        print(start + text.center(width, symbol))
+        string = start + text.center(width, symbol)
+        if return_str:
+            return string
+        else:
+            print(string)
 
     elif size == 4:
         text = f" {title} "
         width = max(width, len(text) + min_symbols * 2)
-        print(start + text.center(width, symbol))
+        string = start + text.center(width, symbol)
+        if return_str:
+            return string
+        else:
+            print(string)
 
 
 def print_menu(options: dict, title="", prompt="> ", start: str | None = None) -> str:
@@ -963,6 +1010,43 @@ def print_menu(options: dict, title="", prompt="> ", start: str | None = None) -
             return choice
 
         print(f"Ungültige Eingabe. Bitte eine dieser Optionen eingeben: {', '.join(options.keys())}.")
+
+
+def print_menu_multi(options: dict, title="", prompt="Auswahl (z.B. 1,3): ", start: str | None = None) -> list[str]:
+    """
+    Like print_menu, but allows comma-separated selection.
+    Returns list of chosen keys. 'z' always cancels and returns [].
+    """
+    valid = set(options.keys())
+    first = True
+
+    while True:
+        if not first and not start: print()
+        first = False
+
+        if start: print(start, end="")
+        if title: print(title)
+
+        for key, label in options.items():
+            print(f"[{key}] {label}")
+
+        raw = input(prompt).strip().lower()
+
+        if raw == "z":
+            return []
+
+        chosen = [c.strip() for c in raw.split(",")]
+        invalid = [c for c in chosen if c not in valid or c == "z"]
+
+        if invalid:
+            print(f"Ungültige Eingabe: {', '.join(invalid)}. Erlaubt: {', '.join(k for k in options if k != 'z')}.")
+            continue
+
+        if not chosen:
+            print("Bitte mindestens eine Option wählen.")
+            continue
+
+        return list(dict.fromkeys(chosen))  # deduplicate, preserve order
 
 
 def print_configuration(mode: str, config: AppConfig | RewardConfig, start: str = "") -> None:
