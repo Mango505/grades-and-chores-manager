@@ -712,7 +712,7 @@ def compare_exports() -> None:
             print(f"Stärkste Verschlechterung: '{most_declined[0]}' ({most_declined[1]:+.2f})")
 
 
-def edit_config(app_config: AppConfig, reward_config: RewardConfig) -> tuple[AppConfig, RewardConfig]:
+def edit_config(app_config: AppConfig, reward_config: RewardConfig, wallet: Wallet) -> tuple[AppConfig, RewardConfig, Wallet]:
     print_subtitle("Konfiguration anpassen")
     first = True
 
@@ -722,13 +722,14 @@ def edit_config(app_config: AppConfig, reward_config: RewardConfig) -> tuple[App
             "2": "Belohnungskonfiguration anpassen",
             "3": "Standard-Pfade anpassen",
             "4": "Ladehinweise anpassen",
+            "5": "Zurücksetzen",
             "z": "Zurück"
         },
         start="\n" if not first else None)
         first = False
 
         if choice == "z":
-            return app_config, reward_config
+            return app_config, reward_config, wallet
         elif choice == "1":
             print_configuration("app", app_config, start="\n")
         elif choice == "2":
@@ -737,6 +738,8 @@ def edit_config(app_config: AppConfig, reward_config: RewardConfig) -> tuple[App
             app_config = configure_paths(app_config)
         elif choice == "4":
             app_config = configure_loading(app_config)
+        elif choice == "5":
+            app_config, reward_config, wallet = reset_options(app_config, reward_config, wallet)
 
 # --- Configuration editing functions ---
 
@@ -917,6 +920,50 @@ def configure_loading(config: AppConfig) -> AppConfig:
         status = "aktiviert" if config.verbose_loading else "deaktiviert"
         print(f"Ladehinweise wurden {status}.")
         return config
+
+
+def reset_options(app_config: AppConfig, reward_config: RewardConfig, wallet: Wallet) -> tuple[AppConfig, RewardConfig, Wallet]:
+    print_subtitle("Zurücksetzen", 2, "-")
+    choice = print_menu({
+        "1": f"Notenänderungen-Log leeren ({len(wallet.grade_log)} Einträge)",
+        "2": f"Einlösungen-Log leeren ({len(wallet.redemptions)} Einträge)",
+        "3": "App-Konfiguration auf Standard zurücksetzen",
+        "4": "Belohnungskonfiguration auf Standard zurücksetzen",
+        "5": "Guthaben zurücksetzen",
+        "z": "Zurück"
+    }, "Was möchtest du zurücksetzen?")
+
+    changed = False
+
+    if choice == "1":
+        if confirm("Bist du sicher dass du den Notenänderungen-Log leeren möchtest? Es werden keine Änderungen an den Noten vorgenommen.") is True:
+            wallet.grade_log = []
+            print("Notenänderungen-Log geleert.")
+            changed = True
+    elif choice == "2":
+        if confirm("Bist du sicher dass du den Einlösungen-Log leeren möchtest? Es wird keine Änderung am Guthaben vorgenommen.") is True:
+            wallet.redemptions = []
+            print("Einlösungen-Log geleert.")
+            changed = True
+    elif choice == "3":
+        if confirm("Bist du sicher dass du die App-Konfiguration auf Standardwerte zurücksetzen möchtest?") is True:
+            app_config = AppConfig()
+            print("App-Konfiguration zurückgesetzt.")
+            changed = True
+    elif choice == "4":
+        if confirm("Bist du sicher dass du die Belohnungskonfiguration auf Standardwerte zurücksetzen möchtest?") is True:
+            reward_config = RewardConfig()
+            print("Belohnungskonfiguration zurückgesetzt.")
+            changed = True
+    elif choice == "5":
+        if confirm("Bist du sicher dass du das Guthaben auf 0 € zurücksetzen möchtest? Es wird keine Änderung am Einlösungen- oder Notenänderungen-Log vorgenommen.") is True:
+            wallet.balance = 0.0
+            print("Guthaben zurückgesetzt.")
+            changed = True
+
+    if changed:
+        print("Tipp: Zum endgültigen Speichern ins Hauptmenü zurückkehren und speichern. Dieser Schritt kann nicht rückgängig gemacht werden!")
+    return app_config, reward_config, wallet
 
 # --- Helpers ---
 
@@ -1300,15 +1347,17 @@ def _diff_state(snap: dict, subjects, wallet, reward_config, app_config) -> list
     if abs(new_bal - old_bal) > 0.001:
         changes.append(f"  ~ Kontostand: {old_bal:.2f} → {new_bal:.2f} € ({new_bal - old_bal:+.2f} €)")
     old_red, new_red = len(snap["wallet"]["redemptions"]), len(wallet.redemptions)
-    if new_red != old_red:
-        changes.append(f"  ~ Einlösungen: {old_red} → {new_red}")
+    if new_red < old_red:
+        changes.append(f"  ~ Einlösungen-Log geleert ({old_red} → {new_red} Einträge)")
+    elif new_red > old_red:
+        changes.append(f"  ~ Einlösungen: +{new_red - old_red} Einträge")
 
     # Grade log
     old_log, new_log = len(snap["wallet"]["grade_log"]), len(wallet.grade_log)
     if new_log < old_log:
-        changes.append(f"  ~ Grade-Log geleert ({old_log} → {new_log} Einträge)")
+        changes.append(f"  ~ Notenänderungen-Log geleert ({old_log} → {new_log} Einträge)")
     elif new_log > old_log:
-        changes.append(f"  ~ Grade-Log: +{new_log - old_log} Einträge")
+        changes.append(f"  ~ Notenänderungen: +{new_log - old_log} Einträge")
 
     # RewardConfig
     old_rc = snap["reward_config"]
