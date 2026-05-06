@@ -1,9 +1,25 @@
 import argparse
-from ui import print_menu, print_title, confirm, add_grade, edit_grade, redeem, show_overview, filter_by_label, show_balance, create_subject, delete_subject, edit_config, show_statistics, export, compare_exports
-from storage import save_app_config, load_app_config, save_subjects, load_subjects, save_wallet, load_wallet, save_reward_config, load_reward_config, APPCONFIG_PATH, DATA_PATH, WALLET_PATH, REWARDCONFIG_PATH
+from ui import (print_menu, print_title, confirm, add_grade, edit_grade, redeem, show_overview, filter_by_label, show_balance,
+                create_subject, delete_subject, edit_config, show_statistics, export, compare_exports, show_save_preview, _diff_state)
+from storage import (save_app_config, load_app_config, save_subjects, load_subjects, save_wallet, load_wallet,
+                     save_reward_config, load_reward_config, APPCONFIG_PATH, DATA_PATH, WALLET_PATH, REWARDCONFIG_PATH)
 from models import LoadStatus
 
 VERSION = "v1.5.0"
+
+def _take_snapshot(subjects, wallet, reward_config, app_config) -> dict:
+    return {
+        "subjects":      [s.to_dict() for s in subjects],
+        "wallet":        wallet.to_dict(),
+        "reward_config": reward_config.to_dict(),
+        "app_config":    app_config.to_dict(),
+    }
+
+def _save_all(app_config, subjects, wallet, reward_config) -> None:
+    save_app_config(app_config, app_config.app_config_path)
+    save_subjects(subjects, app_config.data_path)
+    save_wallet(wallet, app_config.wallet_path)
+    save_reward_config(reward_config, app_config.reward_config_path)
 
 def main():
     # --- Argument parser ---
@@ -80,6 +96,8 @@ def main():
     elif status == LoadStatus.OK and app_config.verbose_loading:
         print(f"Belohnungssystem-Konfiguration geladen: {app_config.reward_config_path}")
 
+    snapshot = _take_snapshot(subjects, wallet, reward_config, app_config)
+
     # --- Menu flow ---
     while True:
         menu = {"1": "Note hinzufügen"}
@@ -95,8 +113,8 @@ def main():
         menu["11"] = "Konfiguration anpassen" + ("\n|" if not reward_config.enabled else "")
         if reward_config.enabled:
             menu["12"] = "Guthaben einlösen\n|"
+        menu["s"] = "Speichern"
         menu["q"] = "Speichern & Beenden"
-        menu["x"] = "Beenden ohne Speichern"
 
         choice = print_menu(
             menu,
@@ -104,15 +122,30 @@ def main():
             start="\n"
         )
 
-        if choice == "q":
-            save_app_config(app_config, app_config.app_config_path)
-            save_subjects(subjects, app_config.data_path)
-            save_wallet(wallet, app_config.wallet_path)
-            save_reward_config(reward_config, app_config.reward_config_path)
-            break
-        elif choice == "x":
-            if confirm("Bist du sicher dass du NICHT speichern willst?"):
+        if choice == "s":
+            changes = _diff_state(snapshot, subjects, wallet, reward_config, app_config)
+            show_save_preview(changes)
+            prompt = "Trotzdem speichern?" if not changes else "Änderungen speichern?"
+            if confirm(prompt) is True:
+                _save_all(app_config, subjects, wallet, reward_config)
+                snapshot = _take_snapshot(subjects, wallet, reward_config, app_config)
+                print("Gespeichert.")
+
+        elif choice == "q":
+            changes = _diff_state(snapshot, subjects, wallet, reward_config, app_config)
+            show_save_preview(changes)
+            if not changes:
+                _save_all(app_config, subjects, wallet, reward_config)
                 break
+            c = confirm("Änderungen übernehmen?")
+            if c is True:
+                _save_all(app_config, subjects, wallet, reward_config)
+                break
+            elif c is False:
+                if confirm("Änderungen verwerfen und beenden?") is True:
+                    break
+            # Z or N at "verwerfen" → back
+
         elif choice == "1":
             add_grade(subjects, reward_config, wallet)
         elif choice == "2":

@@ -826,7 +826,7 @@ def configure_rewards(config: RewardConfig) -> RewardConfig:
             if c is True:
                 config.enabled = False
                 print("Belohnungssystem deaktiviert.")
-                # Return to configure rewards screen
+                return config
             elif c is False:
                 print("Vorgang abgebrochen.")
 
@@ -1278,3 +1278,72 @@ def _wrap(text: str, width: int, indent: int = 22) -> str:
         lines.append(current)
     pad = " " * (indent + width)  # align with second column start
     return f"\n{pad}".join(lines)
+
+
+def _diff_state(snap: dict, subjects, wallet, reward_config, app_config) -> list[str]:
+    changes = []
+
+    # Subjects & grades
+    old_subs = {s["name"]: s for s in snap["subjects"]}
+    new_subs = {s.name: s for s in subjects}
+    for name in sorted(set(new_subs) - set(old_subs)):
+        changes.append(f"  + Fach hinzugefügt:  '{name}'")
+    for name in sorted(set(old_subs) - set(new_subs)):
+        changes.append(f"  - Fach entfernt:     '{name}'")
+    for name in sorted(set(old_subs) & set(new_subs)):
+        delta = len(new_subs[name].grades) - len(old_subs[name]["grades"])
+        if delta:
+            changes.append(f"  {'+' if delta >= 0 else '-'} Noten '{name}': {delta:+d}")
+
+    # Wallet balance & redemptions
+    old_bal, new_bal = snap["wallet"]["balance"], wallet.balance
+    if abs(new_bal - old_bal) > 0.001:
+        changes.append(f"  ~ Kontostand: {old_bal:.2f} → {new_bal:.2f} € ({new_bal - old_bal:+.2f} €)")
+    old_red, new_red = len(snap["wallet"]["redemptions"]), len(wallet.redemptions)
+    if new_red != old_red:
+        changes.append(f"  ~ Einlösungen: {old_red} → {new_red}")
+
+    # Grade log
+    old_log, new_log = len(snap["wallet"]["grade_log"]), len(wallet.grade_log)
+    if new_log < old_log:
+        changes.append(f"  ~ Grade-Log geleert ({old_log} → {new_log} Einträge)")
+    elif new_log > old_log:
+        changes.append(f"  ~ Grade-Log: +{new_log - old_log} Einträge")
+
+    # RewardConfig
+    old_rc = snap["reward_config"]
+    if old_rc["enabled"] != reward_config.enabled:
+        changes.append(f"  ~ Belohnungssystem: {'deaktiviert → aktiviert' if reward_config.enabled else 'aktiviert → deaktiviert'}")
+    if abs(old_rc["money_per_point"] - reward_config.money_per_point) > 0.0001:
+        changes.append(f"  ~ Geld/Punkt: {old_rc['money_per_point']:.2f} → {reward_config.money_per_point:.2f} €")
+    for k, old_v in old_rc["points_map"].items():
+        new_v = reward_config.points_map.get(int(k), 0)
+        if old_v != new_v:
+            changes.append(f"  ~ Punkte Note {k}: {old_v} → {new_v}")
+
+    # AppConfig
+    field_labels = {
+        "app_config_path":    "App-Config-Pfad",
+        "data_path":          "Noten-Pfad",
+        "wallet_path":        "Wallet-Pfad",
+        "reward_config_path": "Belohnungs-Pfad",
+        "verbose_loading":    "Ladehinweise",
+    }
+    old_ac = snap["app_config"]
+    for field, label in field_labels.items():
+        old_val, new_val = old_ac.get(field), getattr(app_config, field)
+        if old_val != new_val:
+            old_val = "aktiviert" if old_val is True else "deaktiviert" if old_val is False else old_val
+            new_val = "aktiviert" if new_val is True else "deaktiviert" if new_val is False else new_val
+            changes.append(f"  ~ {label}: {old_val} → {new_val}")
+
+    return changes
+
+
+def show_save_preview(changes: list[str]) -> None:
+    print_subtitle("Änderungen seit dem Laden", 2)
+    if not changes:
+        print("Keine Änderungen.")
+    else:
+        for line in changes:
+            print(line)
