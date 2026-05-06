@@ -168,7 +168,7 @@ def main():
         elif choice == "10":
             compare_exports()
         elif choice == "11":
-            app_config, reward_config, wallet = edit_config(app_config, reward_config, wallet)
+            app_config, reward_config, wallet, subjects = edit_config(app_config, reward_config, wallet, subjects)
         elif choice == "12":
             redeem(wallet)
 

@@ -713,7 +713,7 @@ def compare_exports() -> None:
             print(f"Stärkste Verschlechterung: '{most_declined[0]}' ({most_declined[1]:+.2f})")
 
 
-def edit_config(app_config: AppConfig, reward_config: RewardConfig, wallet: Wallet) -> tuple[AppConfig, RewardConfig, Wallet]:
+def edit_config(app_config: AppConfig, reward_config: RewardConfig, wallet: Wallet, subjects: list) -> tuple[AppConfig, RewardConfig, Wallet, list]:
     print_subtitle("Konfiguration anpassen")
     first = True
 
@@ -730,7 +730,7 @@ def edit_config(app_config: AppConfig, reward_config: RewardConfig, wallet: Wall
         first = False
 
         if choice == "z":
-            return app_config, reward_config, wallet
+            return app_config, reward_config, wallet, subjects
         elif choice == "1":
             print_configuration("app", app_config, start="\n")
         elif choice == "2":
@@ -740,7 +740,7 @@ def edit_config(app_config: AppConfig, reward_config: RewardConfig, wallet: Wall
         elif choice == "4":
             app_config = configure_loading(app_config)
         elif choice == "5":
-            app_config, reward_config, wallet = reset_options(app_config, reward_config, wallet)
+            app_config, reward_config, wallet, subjects = reset_options(app_config, reward_config, wallet, subjects)
 
 # --- Configuration editing functions ---
 
@@ -923,18 +923,25 @@ def configure_loading(config: AppConfig) -> AppConfig:
         return config
 
 
-def reset_options(app_config: AppConfig, reward_config: RewardConfig, wallet: Wallet) -> tuple[AppConfig, RewardConfig, Wallet]:
+def reset_options(app_config: AppConfig, reward_config: RewardConfig, wallet: Wallet, subjects: list) -> tuple[AppConfig, RewardConfig, Wallet, list]:
     print_subtitle("Zurücksetzen", 2, "-")
-    create_backup(app_config)  # backup saved files before any reset
+    success = create_backup(app_config)    # backup saved files before any reset
+    if not success:   
+        if confirm("Backup fehlgeschlagen. Trotzdem fortfahren (nicht empfohlen)?") is not True:
+            return app_config, reward_config, wallet, subjects
 
-    choice = print_menu({
+    menu = {
         "1": f"Notenänderungen-Log leeren ({len(wallet.grade_log)} Einträge)",
         "2": f"Einlösungen-Log leeren ({len(wallet.redemptions)} Einträge)",
         "3": "App-Konfiguration auf Standard zurücksetzen",
         "4": "Belohnungskonfiguration auf Standard zurücksetzen",
         "5": "Guthaben zurücksetzen",
-        "z": "Zurück"
-    }, "Was möchtest du zurücksetzen?")
+        "6": f"Alle Noten & Fächer löschen ({sum(len(s.grades) for s in subjects)} Noten in {len(subjects)} Fächern)"
+    }
+    if success:
+        menu["7"] = "Alles zurücksetzen"
+    menu["z"] = "Zurück"
+    choice = print_menu(menu, "Was möchtest du zurücksetzen?", start="\n")
 
     changed = False
 
@@ -963,11 +970,37 @@ def reset_options(app_config: AppConfig, reward_config: RewardConfig, wallet: Wa
             wallet.balance = 0.0
             print("Guthaben zurückgesetzt.")
             changed = True
+    elif choice == "6":
+        if not success and not confirm("Es empfiehlt sich, ein Backup anzulegen, bevor alle Fächer und Noten gelöscht werden. Trotzdem fortfahren?"):
+            return app_config, reward_config, wallet, subjects
+        if confirm("Bist du sicher, dass du ALLE FÄCHER UND NOTEN UNWIDERRUFLICH LÖSCHEN möchtest?") is True:
+            subjects = []
+            print("Alle Noten und Fächer gelöscht.")
+            changed = True
+    elif choice == "7":
+        print("Bist du sicher, dass du ALLES ZURÜCKSETZEN möchtest? Hierdurch werden:",
+              "  - DAS GUTHABEN, DER EINLÖSUNGEN-LOG UND DER NOTENÄNDERUNGEN-LOG GELEERT",
+              "  - ALLE EINSTELLUNGEN AUF STANDARDWERTE ZURÜCKGESETZT",
+              "  - ALLE FÄCHER UND NOTEN UNWIDERRUFLICH GELÖSCHT", sep="\n")
+        if confirm("Fortfahren?") is True:
+            wallet.grade_log = []
+            print("Notenänderungen-Log geleert.")
+            wallet.redemptions = []
+            print("Einlösungen-Log geleert.")
+            wallet.balance = 0.0
+            print("Guthaben zurückgesetzt.")
+            app_config = AppConfig()
+            print("App-Konfiguration zurückgesetzt.")
+            reward_config = RewardConfig()
+            print("Belohnungskonfiguration zurückgesetzt.")
+            subjects = []
+            print("Alle Noten und Fächer gelöscht.")
+            changed = True
 
     if changed:
-        print("Tipp: Zum endgültigen Speichern ins Hauptmenü zurückkehren und speichern.",
+        print("\nTipp: Zum endgültigen Speichern ins Hauptmenü zurückkehren und speichern.",
               "\nDieser Schritt kann durch Wiederherstellung aus einem Backup rückgängig gemacht werden.")
-    return app_config, reward_config, wallet
+    return app_config, reward_config, wallet, subjects
 
 # --- Helpers ---
 
