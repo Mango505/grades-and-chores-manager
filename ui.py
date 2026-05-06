@@ -2,6 +2,7 @@ from datetime import datetime
 from collections import Counter
 import copy
 import os
+import shutil
 from models import Grade, Subject, Wallet, RewardConfig, AppConfig
 
 # --- Basic functions ---
@@ -924,6 +925,8 @@ def configure_loading(config: AppConfig) -> AppConfig:
 
 def reset_options(app_config: AppConfig, reward_config: RewardConfig, wallet: Wallet) -> tuple[AppConfig, RewardConfig, Wallet]:
     print_subtitle("Zurücksetzen", 2, "-")
+    create_backup(app_config)  # backup saved files before any reset
+
     choice = print_menu({
         "1": f"Notenänderungen-Log leeren ({len(wallet.grade_log)} Einträge)",
         "2": f"Einlösungen-Log leeren ({len(wallet.redemptions)} Einträge)",
@@ -962,7 +965,8 @@ def reset_options(app_config: AppConfig, reward_config: RewardConfig, wallet: Wa
             changed = True
 
     if changed:
-        print("Tipp: Zum endgültigen Speichern ins Hauptmenü zurückkehren und speichern. Dieser Schritt kann nicht rückgängig gemacht werden!")
+        print("Tipp: Zum endgültigen Speichern ins Hauptmenü zurückkehren und speichern.",
+              "\nDieser Schritt kann durch Wiederherstellung aus einem Backup rückgängig gemacht werden.")
     return app_config, reward_config, wallet
 
 # --- Helpers ---
@@ -1143,6 +1147,34 @@ def print_configuration(mode: str, config: AppConfig | RewardConfig, start: str 
     elif mode == "verbose_loading":
         status = "aktiviert" if config.verbose_loading else "deaktiviert"
         print(start + f"Status der Ladehinweise: {status}")
+
+
+def create_backup(app_config: AppConfig) -> bool:
+    """Copies all data files to a timestamped backup directory. Returns True on success."""
+    timestamp = datetime.now().strftime("%Y%m%d_%H%M%S")
+    backup_dir = os.path.join("data", "backups", f"backup_{timestamp}")
+
+    files = {
+        app_config.data_path:          "grades.json",
+        app_config.wallet_path:        "wallet.json",
+        app_config.reward_config_path: "reward_config.json",
+        app_config.app_config_path:    "app_config.json",
+    }
+
+    existing = [(src, name) for src, name in files.items() if os.path.exists(src)]
+    if not existing:
+        print("Keine gespeicherten Dateien zum Sichern gefunden.")
+        return False
+
+    try:
+        os.makedirs(backup_dir, exist_ok=True)
+        for src, name in existing:
+            shutil.copy2(src, os.path.join(backup_dir, name))
+        print(f"Backup erstellt: {backup_dir} ({', '.join(n for _, n in existing)})")
+        return True
+    except OSError as e:
+        print(f"Backup fehlgeschlagen: {e}")
+        return False
 
 
 def _is_valid_path(path: str) -> bool:

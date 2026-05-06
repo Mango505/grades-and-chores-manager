@@ -1,7 +1,7 @@
 ### Project files ###
-home/
 *.json
 export*.txt
+backup_*
 
 # Created by https://www.toptal.com/developers/gitignore/api/windows,python
 # Edit at https://www.toptal.com/developers/gitignore?templates=windows,python
@@ -224,6 +224,23 @@ $RECYCLE.BIN/
 # Ignore all local history of files
 .history
 .ionide
+
+### Linux ###
+*~
+
+# temporary files which can be created if a process still has a handle open of a deleted file
+.fuse_hidden*
+
+# KDE directory preferences
+.directory
+
+# Linux trash folder which might appear on any partition or disk
+.Trash-*
+
+# .nfs files are created when an open file is removed but is still being accessed
+.nfs*
+
+home/
 
 ### Qodo AI ###
 .qodo/
