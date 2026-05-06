@@ -1,4 +1,5 @@
 import argparse
+import copy
 from ui import (print_menu, print_title, confirm, add_grade, edit_grade, redeem, show_overview, filter_by_label, show_balance,
                 create_subject, delete_subject, edit_config, show_statistics, export, compare_exports, show_save_preview, _diff_state)
 from storage import (save_app_config, load_app_config, save_subjects, load_subjects, save_wallet, load_wallet,
@@ -10,7 +11,7 @@ VERSION = "v1.5.1"
 def _take_snapshot(subjects, wallet, reward_config, app_config) -> dict:
     return {
         "subjects":      [s.to_dict() for s in subjects],
-        "wallet":        wallet.to_dict(),
+        "wallet":        copy.deepcopy(wallet.to_dict()),  # deepcopy prevents list reference sharing
         "reward_config": reward_config.to_dict(),
         "app_config":    app_config.to_dict(),
     }

@@ -117,7 +117,6 @@ def edit_grade(subjects: list[Subject], config: RewardConfig, wallet: Wallet) ->
 
         grade = subject.grades[int(grade_choice)]
 
-
         while True:
             # Choose mode
             print(f"\nAktuell: {grade.value} | {grade.weight:.1f} | {', '.join(grade.labels) or "<keine Labels>"}")
@@ -148,7 +147,7 @@ def edit_grade(subjects: list[Subject], config: RewardConfig, wallet: Wallet) ->
                         continue
 
                     print(f"\nVorschau: {new_value} | {new_weight} | {', '.join(new_labels) or "<keine Labels>"}")
-                    c = confirm("Bist du sicher dass du diese Änderungen übernehmen möchtest?")
+                    c = confirm("Bist du sicher, dass du diese Änderungen übernehmen möchtest?")
                     if c is True:
                         if config.enabled:
                             old_money = config.money_for_points(config.points_for_grade(grade.value))
@@ -182,6 +181,7 @@ def edit_grade(subjects: list[Subject], config: RewardConfig, wallet: Wallet) ->
                 c = confirm("Möchtest du alle Labels dieser Note entfernen?")
                 if c is True:
                     grade.labels = []
+                    wallet.log_grade_event("~", subject.name, grade.value, grade.weight, grade.labels)
                     print("Note aktualisiert.")
                     return subjects, wallet
                 elif c is False:
@@ -191,7 +191,7 @@ def edit_grade(subjects: list[Subject], config: RewardConfig, wallet: Wallet) ->
 
             # Delete grade
             elif mode_choice == "3":
-                c = confirm("Bist du sicher dass du diese Note löschen möchtest?")
+                c = confirm("Bist du sicher, dass du diese Note löschen möchtest?")
                 if c is True:
                     if config.enabled:
                         old_points = config.points_for_grade(grade.value)
@@ -431,7 +431,7 @@ def delete_subject(subjects: list[Subject]) -> list[Subject]:
             choice = int(choice)
             choice = subjects[choice]
 
-            c = confirm(f"Bist du sicher dass du '{choice.name}' entfernen möchtest?")
+            c = confirm(f"Bist du sicher, dass du '{choice.name}' entfernen möchtest?")
             if c is True:
                 subjects.remove(choice)
                 print("Fach entfernt.")
@@ -800,7 +800,7 @@ def configure_rewards(config: RewardConfig) -> RewardConfig:
             print_subtitle("Neue Konfiguration", 3, "=")
             print_configuration("points_map", new_config)
 
-            c = confirm("Bist du sicher dass du diese Änderungen übernehmen möchtest?")
+            c = confirm("Bist du sicher, dass du diese Änderungen übernehmen möchtest?")
             if c is True: print("Änderungen übernommen."); return new_config
             elif c is False: print("Vorgang abgebrochen."); return config
 
@@ -813,7 +813,7 @@ def configure_rewards(config: RewardConfig) -> RewardConfig:
                     if not raw: break
                     new_money = float(raw)
 
-                    c = confirm(f"Bist du sicher dass du den Geldwert pro Punkt zu {new_money:.2f} € ändern möchtest?")
+                    c = confirm(f"Bist du sicher, dass du den Geldwert pro Punkt zu {new_money:.2f} € ändern möchtest?")
                     if c is True:
                         config.money_per_point = new_money
                         print("Änderungen übernommen.")
@@ -825,7 +825,7 @@ def configure_rewards(config: RewardConfig) -> RewardConfig:
                     print("Ungültige Eingabe. Bitte eine Zahl eingeben.")
 
         elif choice == "3":
-            c = confirm("Bist du sicher dass du das Belohnungssystem deaktivieren möchtest?")
+            c = confirm("Bist du sicher, dass du das Belohnungssystem deaktivieren möchtest?")
             if c is True:
                 config.enabled = False
                 print("Belohnungssystem deaktiviert.")
@@ -859,7 +859,7 @@ def configure_paths(config: AppConfig) -> AppConfig:
             if not new: continue
             if not _is_valid_path(new): print("Ungültiger Pfad. Bitte keine Sonderzeichen wie < > \" | ? * verwenden."); continue
 
-            c = confirm(f"Bist du sicher dass du den Pfad der App-Konfigurationsdatei zu '{new}' ändern möchtest?")
+            c = confirm(f"Bist du sicher, dass du den Pfad der App-Konfigurationsdatei zu '{new}' ändern möchtest?")
             if c is True:
                 config.app_config_path = new
                 print("Änderungen übernommen.")
@@ -871,7 +871,7 @@ def configure_paths(config: AppConfig) -> AppConfig:
             if not new: continue
             if not _is_valid_path(new): print("Ungültiger Pfad. Bitte keine Sonderzeichen wie < > \" | ? * verwenden."); continue
 
-            c = confirm(f"Bist du sicher dass du den Pfad der Noten-Datei zu '{new}' ändern möchtest?")
+            c = confirm(f"Bist du sicher, dass du den Pfad der Noten-Datei zu '{new}' ändern möchtest?")
             if c is True:
                 config.data_path = new
                 print("Änderungen übernommen.")
@@ -883,7 +883,7 @@ def configure_paths(config: AppConfig) -> AppConfig:
             if not new: continue
             if not _is_valid_path(new): print("Ungültiger Pfad. Bitte keine Sonderzeichen wie < > \" | ? * verwenden."); continue
 
-            c = confirm(f"Bist du sicher dass du den Pfad der Wallet-Datei zu '{new}' ändern möchtest?")
+            c = confirm(f"Bist du sicher, dass du den Pfad der Wallet-Datei zu '{new}' ändern möchtest?")
             if c is True:
                 config.wallet_path = new
                 print("Änderungen übernommen.")
@@ -895,7 +895,7 @@ def configure_paths(config: AppConfig) -> AppConfig:
             if not new: continue
             if not _is_valid_path(new): print("Ungültiger Pfad. Bitte keine Sonderzeichen wie < > \" | ? * verwenden."); continue
 
-            c = confirm(f"Bist du sicher dass du den Pfad der Belohnungs-Konfigurationsdatei zu '{new}' ändern möchtest?")
+            c = confirm(f"Bist du sicher, dass du den Pfad der Belohnungs-Konfigurationsdatei zu '{new}' ändern möchtest?")
             if c is True:
                 config.reward_config_path = new
                 print("Änderungen übernommen.")
@@ -936,27 +936,27 @@ def reset_options(app_config: AppConfig, reward_config: RewardConfig, wallet: Wa
     changed = False
 
     if choice == "1":
-        if confirm("Bist du sicher dass du den Notenänderungen-Log leeren möchtest? Es werden keine Änderungen an den Noten vorgenommen.") is True:
+        if confirm("Bist du sicher, dass du den Notenänderungen-Log leeren möchtest? Es werden keine Änderungen an den Noten vorgenommen.") is True:
             wallet.grade_log = []
             print("Notenänderungen-Log geleert.")
             changed = True
     elif choice == "2":
-        if confirm("Bist du sicher dass du den Einlösungen-Log leeren möchtest? Es wird keine Änderung am Guthaben vorgenommen.") is True:
+        if confirm("Bist du sicher, dass du den Einlösungen-Log leeren möchtest? Es wird keine Änderung am Guthaben vorgenommen.") is True:
             wallet.redemptions = []
             print("Einlösungen-Log geleert.")
             changed = True
     elif choice == "3":
-        if confirm("Bist du sicher dass du die App-Konfiguration auf Standardwerte zurücksetzen möchtest?") is True:
+        if confirm("Bist du sicher, dass du die App-Konfiguration auf Standardwerte zurücksetzen möchtest?") is True:
             app_config = AppConfig()
             print("App-Konfiguration zurückgesetzt.")
             changed = True
     elif choice == "4":
-        if confirm("Bist du sicher dass du die Belohnungskonfiguration auf Standardwerte zurücksetzen möchtest?") is True:
+        if confirm("Bist du sicher, dass du die Belohnungskonfiguration auf Standardwerte zurücksetzen möchtest?") is True:
             reward_config = RewardConfig()
             print("Belohnungskonfiguration zurückgesetzt.")
             changed = True
     elif choice == "5":
-        if confirm("Bist du sicher dass du das Guthaben auf 0 € zurücksetzen möchtest? Es wird keine Änderung am Einlösungen- oder Notenänderungen-Log vorgenommen.") is True:
+        if confirm("Bist du sicher, dass du das Guthaben auf 0 € zurücksetzen möchtest? Es wird keine Änderung am Einlösungen- oder Notenänderungen-Log vorgenommen.") is True:
             wallet.balance = 0.0
             print("Guthaben zurückgesetzt.")
             changed = True
@@ -1338,9 +1338,14 @@ def _diff_state(snap: dict, subjects, wallet, reward_config, app_config) -> list
     for name in sorted(set(old_subs) - set(new_subs)):
         changes.append(f"  - Fach entfernt:     '{name}'")
     for name in sorted(set(old_subs) & set(new_subs)):
-        delta = len(new_subs[name].grades) - len(old_subs[name]["grades"])
+        old_grades = old_subs[name]["grades"]
+        new_grades = [g.to_dict() for g in new_subs[name].grades]
+        delta = len(new_grades) - len(old_grades)
         if delta:
             changes.append(f"  {'+' if delta >= 0 else '-'} Noten '{name}': {delta:+d}")
+        elif old_grades != new_grades:
+            # same count but content changed (e.g. labels cleared, value/weight edited)
+            changes.append(f"  ~ Noten in '{name}' bearbeitet")
 
     # Wallet balance & redemptions
     old_bal, new_bal = snap["wallet"]["balance"], wallet.balance
