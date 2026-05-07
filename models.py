@@ -145,12 +145,14 @@ class AppConfig:
         data_path: str = "data/grades.json",
         wallet_path: str = "data/wallet.json",
         reward_config_path: str = "data/reward_config.json",
-        verbose_loading: bool = True,   # True = "Noten geladen: ...", False = nur Warnungen
+        backup_path: str = "data/backups",
+        verbose_loading: bool = True   # True = "Noten geladen: ...", False = nur Warnungen
     ):
         self.app_config_path = app_config_path
         self.data_path = data_path
         self.wallet_path = wallet_path
         self.reward_config_path = reward_config_path
+        self.backup_path = backup_path
         self.verbose_loading = verbose_loading
 
     def to_dict(self) -> dict:
@@ -159,6 +161,7 @@ class AppConfig:
             "data_path": self.data_path,
             "wallet_path": self.wallet_path,
             "reward_config_path": self.reward_config_path,
+            "backup_path": self.backup_path,
             "verbose_loading": self.verbose_loading
         }
 
@@ -169,6 +172,7 @@ class AppConfig:
             data_path=data.get("data_path") or "data/grades.json",
             wallet_path=data.get("wallet_path") or "data/wallet.json",
             reward_config_path=data.get("reward_config_path") or "data/reward_config.json",
+            backup_path=data.get("backup_path") or "data/backups",
             verbose_loading=data.get("verbose_loading", True)
         )
 

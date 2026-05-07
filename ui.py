@@ -724,6 +724,7 @@ def edit_config(app_config: AppConfig, reward_config: RewardConfig, wallet: Wall
             "3": "Standard-Pfade anpassen",
             "4": "Ladehinweise anpassen",
             "5": "Zurücksetzen",
+            "6": "Alte Backups löschen",
             "z": "Zurück"
         },
         start="\n" if not first else None)
@@ -741,6 +742,8 @@ def edit_config(app_config: AppConfig, reward_config: RewardConfig, wallet: Wall
             app_config = configure_loading(app_config)
         elif choice == "5":
             app_config, reward_config, wallet, subjects = reset_options(app_config, reward_config, wallet, subjects)
+        elif choice == "6":
+            cleanup_backups(app_config.backup_path)
 
 # --- Configuration editing functions ---
 
@@ -846,6 +849,7 @@ def configure_paths(config: AppConfig) -> AppConfig:
             "2": "Noten-Datei",
             "3": "Wallet-Datei",
             "4": "Belohnungs-Konfigurationsdatei",
+            "5": "Backup-Pfad",
             "z": "Zurück"
         },
         "Welchen Pfad möchtest du ändern?",
@@ -903,6 +907,18 @@ def configure_paths(config: AppConfig) -> AppConfig:
                 return config
             elif c is False: print("Vorgang abgebrochen."); return config
 
+        elif choice == "5":
+            new = input(f"Neuen Pfad für Backups eingeben (Aktuell: {config.backup_path})\n> ").strip()
+            if not new: continue
+            if not _is_valid_path(new): print("Ungültiger Pfad. Bitte keine Sonderzeichen wie < > \" | ? * verwenden."); continue
+
+            c = confirm(f"Bist du sicher, dass du den Backup-Pfad zu '{new}' ändern möchtest?")
+            if c is True:
+                config.backup_path = new
+                print("Änderungen übernommen.")
+                return config
+            elif c is False: print("Vorgang abgebrochen."); return config
+
 
 def configure_loading(config: AppConfig) -> AppConfig:
     print_subtitle("Ladehinweise anpassen", 2, "-")
@@ -926,7 +942,7 @@ def configure_loading(config: AppConfig) -> AppConfig:
 def reset_options(app_config: AppConfig, reward_config: RewardConfig, wallet: Wallet, subjects: list) -> tuple[AppConfig, RewardConfig, Wallet, list]:
     print_subtitle("Zurücksetzen", 2, "-")
     success = create_backup(app_config)    # backup saved files before any reset
-    if not success:   
+    if not success:
         if confirm("Backup fehlgeschlagen. Trotzdem fortfahren (nicht empfohlen)?") is not True:
             return app_config, reward_config, wallet, subjects
 
@@ -1006,7 +1022,6 @@ def reset_options(app_config: AppConfig, reward_config: RewardConfig, wallet: Wa
 
 def print_subjects(subjects: list[Subject], additional: str = "", start: str | None = None) -> str:
     """Shows the user a list with indexes of existing subjects to select from"""
-
     options = {str(i): s.name for i, s in enumerate(subjects)}  # convert list to dict: {index: name}
     options["z"] = "Zurück"
     choice = print_menu(options, "Fach auswählen" + additional + ":", start=start)
@@ -1167,6 +1182,7 @@ def print_configuration(mode: str, config: AppConfig | RewardConfig, start: str 
         print(f"Pfad der Noten-Datei: {config.data_path}")
         print(f"Pfad der Wallet-Datei: {config.wallet_path}")
         print(f"Pfad der Belohnungs-Konfigurationsdatei: {config.reward_config_path}")
+        print(f"Pfad des Backup-Verzeichnisses: {config.backup_path}")
 
         status = "aktiviert" if config.verbose_loading else "deaktiviert"
         print(f"Status der Ladehinweise: {status}")
@@ -1176,6 +1192,7 @@ def print_configuration(mode: str, config: AppConfig | RewardConfig, start: str 
         print(f"Pfad der Noten-Datei: {config.data_path}")
         print(f"Pfad der Wallet-Datei: {config.wallet_path}")
         print(f"Pfad der Belohnungs-Konfigurationsdatei: {config.reward_config_path}")
+        print(f"Pfad des Backup-Verzeichnisses: {config.backup_path}")
 
     elif mode == "verbose_loading":
         status = "aktiviert" if config.verbose_loading else "deaktiviert"
@@ -1185,7 +1202,7 @@ def print_configuration(mode: str, config: AppConfig | RewardConfig, start: str 
 def create_backup(app_config: AppConfig) -> bool:
     """Copies all data files to a timestamped backup directory. Returns True on success."""
     timestamp = datetime.now().strftime("%Y%m%d_%H%M%S")
-    backup_dir = os.path.join("data", "backups", f"backup_{timestamp}")
+    backup_dir = os.path.join(app_config.backup_path, f"backup_{timestamp}")
 
     files = {
         app_config.data_path:          "grades.json",
@@ -1208,6 +1225,38 @@ def create_backup(app_config: AppConfig) -> bool:
     except OSError as e:
         print(f"Backup fehlgeschlagen: {e}")
         return False
+
+
+def cleanup_backups(backup_path: str) -> None:
+    """Deletes all backup directories except the newest one."""
+    if not os.path.exists(backup_path):
+        print("Kein Backup-Verzeichnis gefunden.")
+        return
+
+    entries = sorted(
+        [e for e in os.scandir(backup_path) if e.is_dir() and e.name.startswith("backup_")],
+        key=lambda e: e.name  # lexicographic sort works because of timestamp format
+    )
+
+    if len(entries) <= 1:
+        print(f"{'Nur ein' if entries else 'Kein'} Backup vorhanden, nichts zu löschen.")
+        return
+
+    to_delete = entries[:-1]
+    print(f"Neuestes Backup: {entries[-1].name}")
+    print(f"Zu löschende Backups ({len(to_delete)}):")
+    for e in to_delete:
+        print(f"  {e.name}")
+
+    if confirm(f"\nAlle {len(to_delete)} alten Backup(s) löschen?") is True:
+        failed = []
+        for e in to_delete:
+            try:
+                shutil.rmtree(e.path)
+            except OSError:
+                failed.append(e.name)
+        deleted = len(to_delete) - len(failed)
+        print(f"{deleted} Backup(s) gelöscht." + (f" Fehlgeschlagen: {', '.join(failed)}" if failed else ""))
 
 
 def _is_valid_path(path: str) -> bool:
@@ -1446,6 +1495,7 @@ def _diff_state(snap: dict, subjects, wallet, reward_config, app_config) -> list
         "data_path":          "Noten-Pfad",
         "wallet_path":        "Wallet-Pfad",
         "reward_config_path": "Belohnungs-Pfad",
+        "backup_path":        "Backup-Pfad",
         "verbose_loading":    "Ladehinweise",
     }
     old_ac = snap["app_config"]
