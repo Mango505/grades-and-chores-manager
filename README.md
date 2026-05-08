@@ -1,6 +1,6 @@
 # grade-calculator
 
-![Version](https://img.shields.io/badge/version-v1.5.4-brightgreen)
+![Version](https://img.shields.io/badge/version-v1.5.5-brightgreen)
 ![Python](https://img.shields.io/badge/python-3.10+-blue)
 ![Status](https://img.shields.io/badge/status-CLI%20functional-green)
 
