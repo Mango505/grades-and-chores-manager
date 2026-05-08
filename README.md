@@ -8,19 +8,18 @@ A command-line grade manager for the **Bavarian grading system (1–6)** with an
 
 ---
 
-## Table of Contents
+## Table of Contents 📄
 
 - [Introduction](#introduction)
 - [Features](#features)
 - [Technologies](#technologies)
-- [Usage](#usage)
+- [Usage ](#usage)
 - [Data Files](#data-files)
 - [Backup & Reset](#backup--reset)
 - [Project Status](#project-status)
+- [License](#license)
 
----
-
-## Introduction
+## Introduction 🚀
 
 **grade-calculator** is a CLI application for managing school grades with weighted averages, label-based filtering, and an optional reward system. The reward system lets you (or a parent) define a payout per grade — in euros, a custom unit like trading cards, or raw points — so that earning good grades automatically updates a tracked balance that can later be redeemed.
 
@@ -28,7 +27,7 @@ Everything is stored locally in JSON files, making it portable and easy to inspe
 
 ---
 
-## Features
+## Features ✨
 
 ### Grades & Subjects
 - Add, edit, and delete grades per subject
@@ -60,7 +59,7 @@ Everything is stored locally in JSON files, making it portable and easy to inspe
 
 ---
 
-## Technologies
+## Technologies 🐍
 
 | Dependency   | Required | Purpose                              |
 |--------------|----------|--------------------------------------|
@@ -76,12 +75,12 @@ pip install matplotlib numpy
 
 ---
 
-## Usage
+## Usage 🛠️
 
 ### Running the app
 
 ```bash
-git clone https://github.com/your-username/grade-calculator.git
+git clone https://github.com/Mango505/grade-calculator.git
 cd grade-calculator
 python main.py
 ```
@@ -89,6 +88,8 @@ python main.py
 ### CLI Arguments
 
 All arguments are optional. If not provided, the app falls back to the paths stored in `data/app_config.json` or the built-in defaults.
+
+> When providing a file path via an argument, it will override the path stored in the app config for that file.
 
 ```
 python main.py [-h] [-a FILE] [-f FILE] [-w FILE] [-r FILE]
@@ -116,7 +117,7 @@ The app uses a numbered menu system throughout. At any prompt:
 
 ---
 
-## Data Files
+## Data Files 💾
 
 All data is persisted as human-readable JSON. Default locations (relative to the project root):
 
@@ -131,7 +132,7 @@ The `data/` directory is created automatically on first save. Files can be moved
 
 ---
 
-## Backup & Reset
+## Backup & Reset 🔄
 
 ### Backups
 A timestamped backup of all four data files can be created from within the app:
@@ -156,9 +157,17 @@ The following can be reset individually or all at once (a backup is always attem
 
 ---
 
-## Project Status
+## Project Status 👀
 
 | Component       | Status              |
 |-----------------|---------------------|
-| CLI application | ✅ Fully functional  |
-| Web interface   | 🔜 Planned           |
+| CLI application | ✅ Fully functional |
+| Web interface   | 🔜 Planned          |
+
+---
+
+## License ⚖️
+
+> You can view the license [here](https://github.com/Mango505/grade-calculator/blob/d846d67eda37bd25aa45da4d3eac7db6b9195f3d/LICENSE).
+
+This project is licensed under the terms of the **MIT** license.
