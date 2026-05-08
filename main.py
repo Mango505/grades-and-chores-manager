@@ -6,7 +6,7 @@ from storage import (save_app_config, load_app_config, save_subjects, load_subje
                      save_reward_config, load_reward_config, APPCONFIG_PATH, DATA_PATH, WALLET_PATH, REWARDCONFIG_PATH)
 from models import LoadStatus
 
-VERSION = "v1.5.3"
+VERSION = "v1.5.4"
 
 def _take_snapshot(subjects, wallet, reward_config, app_config) -> dict:
     return {
