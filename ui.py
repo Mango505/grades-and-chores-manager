@@ -3,7 +3,7 @@ from collections import Counter
 import copy
 import os
 import shutil
-from models import Grade, Subject, Wallet, RewardConfig, AppConfig
+from models import Grade, Subject, Wallet, RewardConfig, AppConfig, REWARD_MODE_MONEY, REWARD_MODE_POINTS, REWARD_MODE_UNIT
 
 # --- Basic functions ---
 
@@ -55,16 +55,19 @@ def add_grade(subjects: list[Subject], config: RewardConfig, wallet: Wallet) -> 
                 c = confirm("Ist das korrekt?")
                 if c is True:
                     choice.add_grade(grade)    # add the Grade to the desired subject
-                    money_delta = config.money_for_points(config.points_for_grade(value)) if config.enabled else None
-                    wallet.log_grade_event("+", choice.name, value, weight, labels, money_delta)
+                    money_delta = config.units_for_points(config.points_for_grade(value)) if config.enabled else None
+                    wallet.log_grade_event("+", choice.name, value, weight, labels, value_delta=money_delta)
                     print(f"\nNeue Note zum Fach '{choice.name}' hinzugefügt.")
 
-                    if config.enabled:  # show earnings if rewards are enabled
+                    if config.enabled:
                         points = config.points_for_grade(value)
-                        money = config.money_for_points(points)
-                        print(f"Note {value}: {points} Punkte (+{money:.2f} €)")
-                        wallet.balance += money
-                        print(f"Aktueller Kontostand: {wallet.balance:.2f} €")
+                        earned = config.units_for_points(points)
+                        wallet.balance += earned
+                        if config.reward_mode != "points":
+                            print(f"Note {value}: {points} Punkte (+{config.format_value(earned)})")
+                        else:
+                            print(f"Note {value}: +{points} Punkte")
+                        print(f"Aktueller Kontostand: {config.format_value(wallet.balance)}")
                     return subjects, config, wallet
                 elif c is False:
                     print("Vorgang abgebrochen.")
@@ -151,22 +154,22 @@ def edit_grade(subjects: list[Subject], config: RewardConfig, wallet: Wallet) ->
                     c = confirm("Bist du sicher, dass du diese Änderungen übernehmen möchtest?")
                     if c is True:
                         if config.enabled:
-                            old_money = config.money_for_points(config.points_for_grade(grade.value))
-                            new_money = config.money_for_points(config.points_for_grade(new_value))
-                            diff = new_money - old_money
+                            old_earned = config.units_for_points(config.points_for_grade(grade.value))
+                            new_earned = config.units_for_points(config.points_for_grade(new_value))
+                            diff = new_earned - old_earned
                             if diff != 0:
-                                sign = "+" if diff > 0 else ""
-                                c2 = confirm(f"Notenwert ändert sich, Guthaben um {sign}{diff:.2f} € anpassen?")
+                                sign = "+" if diff >= 0 else ""
+                                c2 = confirm(f"Notenwert ändert sich, Guthaben um {sign}{config.format_value(diff)} anpassen?")
                                 if c2 is True:
                                     wallet.balance += diff
-                                    print(f"Guthaben angepasst: {sign}{diff:.2f} €")
-                                    print(f"Aktueller Kontostand: {wallet.balance:.2f} €")
+                                    print(f"Guthaben angepasst: {sign}{config.format_value(diff)}")
+                                    print(f"Aktueller Kontostand: {config.format_value(wallet.balance)}")
                                 elif c2 is None:
                                     continue
                         subject.grades[int(grade_choice)] = new_grade
-                        money_delta = (config.money_for_points(config.points_for_grade(new_value)) -
-                                       config.money_for_points(config.points_for_grade(grade.value))) if config.enabled else None
-                        wallet.log_grade_event("~", subject.name, new_value, new_weight, new_labels, money_delta)
+                        value_delta = (config.units_for_points(config.points_for_grade(new_value)) -
+                                       config.units_for_points(config.points_for_grade(grade.value))) if config.enabled else None
+                        wallet.log_grade_event("~", subject.name, new_value, new_weight, new_labels, value_delta=value_delta)
                         print("Note aktualisiert.")
                         return subjects, wallet
                     elif c is False:
@@ -195,28 +198,27 @@ def edit_grade(subjects: list[Subject], config: RewardConfig, wallet: Wallet) ->
                 c = confirm("Bist du sicher, dass du diese Note löschen möchtest?")
                 if c is True:
                     if config.enabled:
-                        old_points = config.points_for_grade(grade.value)
-                        old_money = config.money_for_points(old_points)
-                        if old_money > 0:
-                            c2 = confirm(f"Note {grade.value} hat {old_money:.2f} € eingebracht (Aktueller Kontostand: {wallet.balance:.2f} €). Guthaben zurückbuchen?")
+                        old_earned = config.units_for_points(config.points_for_grade(grade.value))
+                        if old_earned > 0:
+                            c2 = confirm(f"Note {grade.value} hat {config.format_value(old_earned)} eingebracht (Aktueller Kontostand: {config.format_value(wallet.balance)}).\nGuthaben zurückbuchen?")
                             if c2 is True:
-                                if wallet.balance - old_money < 0:
-                                    c3 = confirm("Dein Guthaben wird dadurch in den negativen Bereich zurückfallen, fortfahren?")
+                                if wallet.balance - old_earned < 0:
+                                    c3 = confirm("Dein Guthaben wird dadurch negativ, fortfahren?")
                                     if c3 is True:
-                                        wallet.balance -= old_money
-                                        print(f"Guthaben angepasst: -{old_money:.2f} €")
-                                        print(f"Aktueller Kontostand: {wallet.balance:.2f} €")
+                                        wallet.balance -= old_earned
+                                        print(f"Guthaben angepasst: -{config.format_value(old_earned)}")
+                                        print(f"Aktueller Kontostand: {config.format_value(wallet.balance)}")
                                     else:
                                         continue
                                 else:
-                                    wallet.balance -= old_money
-                                    print(f"Guthaben angepasst: -{old_money:.2f} €")
-                                    print(f"Aktueller Kontostand: {wallet.balance:.2f} €")
+                                    wallet.balance -= old_earned
+                                    print(f"Guthaben angepasst: -{config.format_value(old_earned)}")
+                                    print(f"Aktueller Kontostand: {config.format_value(wallet.balance)}")
                             elif c2 is None:
                                 continue
                     subject.remove_grade(int(grade_choice))
-                    money_delta = -config.money_for_points(config.points_for_grade(grade.value)) if config.enabled else None
-                    wallet.log_grade_event("-", subject.name, grade.value, grade.weight, grade.labels, money_delta)
+                    value_delta = -config.units_for_points(config.points_for_grade(grade.value)) if config.enabled else None
+                    wallet.log_grade_event("-", subject.name, grade.value, grade.weight, grade.labels, value_delta=value_delta)
                     print("Note gelöscht.")
                     return subjects, wallet
                 elif c is False:
@@ -225,9 +227,10 @@ def edit_grade(subjects: list[Subject], config: RewardConfig, wallet: Wallet) ->
                 # None → continue (back to subject selection)
 
 
-def redeem(wallet: Wallet) -> Wallet:
+def redeem(wallet: Wallet, config: RewardConfig) -> Wallet:
     print_subtitle("Guthaben einlösen")
-    if wallet.balance < 0.50:
+    min_val = 0.50 if config.reward_mode == "money" else config.unit_per_point if config.reward_mode == "unit" else 1.0
+    if wallet.balance < min_val:
         print("Guthaben zu klein.")
         return wallet
 
@@ -236,10 +239,10 @@ def redeem(wallet: Wallet) -> Wallet:
             cost = input("Betrag eingeben, der vom Konto abgezogen werden soll: ").strip()
             cost = float(cost)
             if cost > wallet.balance:
-                print(f"Ungültige Eingabe. Betrag muss kleiner oder gleich dem aktuellen Kontostand von {wallet.balance:.2f} € sein.")
+                print(f"Ungültige Eingabe. Betrag muss ≤ aktuellem Kontostand ({config.format_value(wallet.balance)}) sein.")
                 continue
             if cost <= 0.01:
-                print("Ungültige Eingabe. Betrag muss größer als 0,01 € sein.")
+                print(f"Ungültige Eingabe. Betrag muss größer als {config.format_value(0.01)} sein.")
                 continue
 
             description = input("Beschreibung hinzufügen oder leerlassen: ").strip()
@@ -247,12 +250,12 @@ def redeem(wallet: Wallet) -> Wallet:
             desc = description if description else '<keine Beschreibung>'
             date = datetime.now().strftime("%d.%m.%Y %H:%M")
             print("\nVorschau:")
-            print(f"{desc} | -{cost:.2f} € | {date}")
+            print(f"{desc} | -{config.format_value(cost)} | {date}")
 
             c = confirm("\nIst das korrekt?")
             if c is True:
                 wallet.redeem(cost, description if description else "<keine Beschreibung>")
-                print(f"Guthaben erfolgreich eingelöst. Neuer Kontostand: {wallet.balance:.2f} €")
+                print(f"Guthaben erfolgreich eingelöst. Neuer Kontostand: {config.format_value(wallet.balance)}")
                 return wallet
             elif c is False:
                 print("Vorgang abgebrochen.")
@@ -347,20 +350,20 @@ def filter_by_label(subjects: list[Subject]) -> list[Subject]:
 def show_balance(config: RewardConfig, wallet: Wallet) -> tuple[RewardConfig, Wallet]:
     print_subtitle("Konto & Verlauf")
     if config.enabled is True:
-        print(f"Aktueller Kontostand: {wallet.balance:.2f} €")
+        print(f"Aktueller Kontostand: {config.format_value(wallet.balance)}")
     else:
         print("Belohnungssystem deaktiviert.")
 
     if wallet.redemptions and config.enabled is True:
         print("\nLetzte Einlösungen:")
         for r in wallet.redemptions[-5:][::-1]:  # show last 5
-            print(f"{r['description']} | -{r['cost']:.2f} € | {r.get('date','<unbekanntes Datum>')}")
+            print(f"{r['description']} | -{config.format_value(r['cost'])} | {r.get('date','<unbekanntes Datum>')}")
         length = len(wallet.redemptions)
         if length > 5:
             c = confirm(f"\nSollen alle {length} Einlösungen angezeigt werden?")
             if c is True:
                 for r in wallet.redemptions[::-1]:    # show all, including previously shown
-                    print(f"{r['description']} | -{r['cost']:.2f} € | {r.get('date','<unbekanntes Datum>')}")
+                    print(f"{r['description']} | -{config.format_value(r['cost'])} | {r.get('date','<unbekanntes Datum>')}")
             if c is None: return config, wallet
 
     if wallet.grade_log:
@@ -368,12 +371,12 @@ def show_balance(config: RewardConfig, wallet: Wallet) -> tuple[RewardConfig, Wa
         symbols = {"+": "Hinzugefügt", "-": "Gelöscht", "~": "Bearbeitet"}
         for e in wallet.grade_log[-5:][::-1]:
             labels_str = ", ".join(e["labels"]) or "<keine Labels>"
-            delta = e.get("money_delta")
+            delta = e.get("value_delta")
             if not isinstance(delta, (int, float)):
                 money_str = ""
             else:
                 sign = "+" if delta >= 0 else ""
-                money_str = f" | {sign}{delta:.2f} €"
+                money_str = f" | {sign}{config.format_value(delta)}"
             print(f"{symbols.get(e['action'], e['action'])} | {e['date']} | {e['subject']} | {e['value']} ({e['weight']:.1f}x) | {labels_str}" + money_str)
         length = len(wallet.grade_log)
         if length > 5:
@@ -381,12 +384,12 @@ def show_balance(config: RewardConfig, wallet: Wallet) -> tuple[RewardConfig, Wa
             if c is True:
                 for e in wallet.grade_log[::-1]:
                     labels_str = ", ".join(e["labels"]) or "<keine Labels>"
-                    delta = e.get("money_delta")
+                    delta = e.get("value_delta")
                     if not isinstance(delta, (int, float)):
                         money_str = ""
                     else:
                         sign = "+" if delta >= 0 else ""
-                        money_str = f" | {sign}{delta:.2f} €"
+                        money_str = f" | {sign}{config.format_value(delta)}"
                     print(f"{symbols.get(e['action'], e['action'])} | {e['date']} | {e['subject']} | {e['value']} ({e['weight']:.1f}x) | {labels_str}" + money_str)
     else:
         print("\nKeine Notenänderungen vorhanden.")
@@ -491,10 +494,9 @@ def show_statistics(subjects: list[Subject], wallet: Wallet, config: RewardConfi
     # Wallet summary (only if rewards enabled)
     if config.enabled:
         total_redeemed = sum(r["cost"] for r in wallet.redemptions)
-        print(f"\nVerdient:   {wallet.balance + total_redeemed:.2f} €")
-        print(f"Eingelöst:    {total_redeemed:.2f} €")
-        print(f"Restguthaben: {wallet.balance:.2f} €")
-
+        print(f"\nVerdient:   {config.format_value(wallet.balance + total_redeemed)}")
+        print(f"Eingelöst:    {config.format_value(total_redeemed)}")
+        print(f"Restguthaben: {config.format_value(wallet.balance)}")
     # Graphs (matplotlib)
     _plot_distribution(distribution)    # grade distribution
     _plot_trends(subjects_with_grades)  # trend per subject
@@ -568,9 +570,9 @@ def export(subjects: list[Subject], wallet: Wallet, config: RewardConfig) -> Non
         if config.enabled:
             lines.append("")
             total_redeemed = sum(r["cost"] for r in wallet.redemptions)
-            lines.append(f"Verdient:     {wallet.balance + total_redeemed:.2f} €")
-            lines.append(f"Eingelöst:    {total_redeemed:.2f} €")
-            lines.append(f"Restguthaben: {wallet.balance:.2f} €")
+            lines.append(f"Verdient:     {config.format_value(wallet.balance + total_redeemed)}")
+            lines.append(f"Eingelöst:    {config.format_value(total_redeemed)}")
+            lines.append(f"Restguthaben: {config.format_value(wallet.balance)}")
 
     if "2" in choice:   # Grades per subject
         lines.append(print_subtitle("Noten pro Fach", 4, width=40, return_str=True))
@@ -587,12 +589,12 @@ def export(subjects: list[Subject], wallet: Wallet, config: RewardConfig) -> Non
             symbols = {"+": "Hinzugefügt", "-": "Gelöscht", "~": "Bearbeitet"}
             for e in wallet.grade_log[::-1]:
                 labels_str = ", ".join(e["labels"]) or "<keine Labels>"
-                delta = e.get("money_delta")
+                delta = e.get("value_delta")
                 if not isinstance(delta, (int, float)):
                     money_str = ""
                 else:
                     sign = "+" if delta >= 0 else ""
-                    money_str = f" | {sign}{delta:.2f} €"
+                    money_str = f" | {sign}{config.format_value(delta)}"
                 lines.append(f"{symbols.get(e['action'], e['action'])} | {e['date']} | {e['subject']} | {e['value']} ({e['weight']:.1f}x) | {labels_str}" + money_str)
         else:
             lines.append("Keine")
@@ -601,7 +603,7 @@ def export(subjects: list[Subject], wallet: Wallet, config: RewardConfig) -> Non
         lines.append(print_subtitle("Einlösungen", 4, width=40, return_str=True))
         if wallet.redemptions and config.enabled:
             for r in wallet.redemptions[::-1]:
-                lines.append(f"{r['description']} | -{r['cost']:.2f} € | {r.get('date','<unbekanntes Datum>')}")
+                lines.append(f"{r['description']} | -{config.format_value(r['cost'])} | {r.get('date','<unbekanntes Datum>')}")
         else:
             lines.append("Keine")
 
@@ -735,7 +737,7 @@ def edit_config(app_config: AppConfig, reward_config: RewardConfig, wallet: Wall
         elif choice == "1":
             print_configuration("app", app_config, start="\n")
         elif choice == "2":
-            reward_config = configure_rewards(reward_config)
+            reward_config = configure_rewards(reward_config, wallet)
         elif choice == "3":
             app_config = configure_paths(app_config)
         elif choice == "4":
@@ -747,7 +749,7 @@ def edit_config(app_config: AppConfig, reward_config: RewardConfig, wallet: Wall
 
 # --- Configuration editing functions ---
 
-def configure_rewards(config: RewardConfig) -> RewardConfig:
+def configure_rewards(config: RewardConfig, wallet: Wallet) -> RewardConfig:
     print_subtitle("Belohnungskonfiguration anpassen", 2, "-")
 
     # System disabled: only offer to enable it
@@ -759,8 +761,12 @@ def configure_rewards(config: RewardConfig) -> RewardConfig:
             "z": "Zurück"
         }, start="\n")
         if choice == "1":
+            new_config, cancel = _configure_reward_mode(config)
+            if cancel:
+                return config
+            config = new_config
             config.enabled = True
-            print("Belohnungssystem aktiviert.")
+            print(f"Belohnungssystem aktiviert ({config.mode_label()}).")
         return config
 
     # System enabled: show full config and all options
@@ -770,15 +776,13 @@ def configure_rewards(config: RewardConfig) -> RewardConfig:
         first = False
         print_configuration("reward", config)
 
-        choice = print_menu({
-            "1": "Punkte pro Note",
-            "2": "Geld pro Punkt",
-            "3": "Belohnungssystem deaktivieren",
-            "z": "Zurück"
-        },
-        "Was möchtest du ändern?",
-        start="\n"
-        )
+        menu = {"1": "Punkte pro Note"}
+        if config.reward_mode != REWARD_MODE_POINTS:
+            menu["2"] = "Geld pro Punkt" if config.reward_mode == REWARD_MODE_MONEY else f"Einheit '{config.unit_name}' anpassen"
+        menu["3"] = "Belohnungssystem deaktivieren"
+        menu["4"] = f"Modus ändern (aktuell: {config.mode_label()})"
+        menu["z"] = "Zurück"
+        choice = print_menu(menu, "Was möchtest du ändern?", start="\n")
 
         if choice == "z":
             return config
@@ -809,32 +813,67 @@ def configure_rewards(config: RewardConfig) -> RewardConfig:
             elif c is False: print("Vorgang abgebrochen."); return config
 
         elif choice == "2":
-            money = config.money_per_point
+            if config.reward_mode == REWARD_MODE_MONEY:
+                # existing money_per_point logic unchanged
+                money = config.money_per_point
+                while True:
+                    try:
+                        raw = input(f"Neuen Geldwert pro Punkt eingeben oder leerlassen (Aktuell {money:.2f} €/Pt.)\n> ").strip()
+                        if not raw: break
+                        new_money = float(raw)
+                        if new_money <= 0: print("Muss größer als 0 sein."); continue
+                        c = confirm(f"Geldwert pro Punkt zu {new_money:.2f} € ändern?")
+                        if c is True:
+                            config.money_per_point = new_money
+                            print("Änderungen übernommen.")
+                            return config
+                        elif c is False: print("Vorgang abgebrochen."); return config
+                        elif c is None: break
+                    except ValueError:
+                        print("Ungültige Eingabe. Bitte eine Zahl eingeben.")
 
-            while True:
-                try:
-                    raw = input(f"Neuen Geldwert pro Punkt eingeben oder leerlassen zum Beibehalten (Aktuell {money:.2f} € pro Punkt)" + "\n> ").strip()
-                    if not raw: break
-                    new_money = float(raw)
-
-                    c = confirm(f"Bist du sicher, dass du den Geldwert pro Punkt zu {new_money:.2f} € ändern möchtest?")
-                    if c is True:
-                        config.money_per_point = new_money
-                        print("Änderungen übernommen.")
-                        return config
-                    elif c is False: print("Vorgang abgebrochen."); return config
-                    elif c is None: break
-
-                except ValueError:
-                    print("Ungültige Eingabe. Bitte eine Zahl eingeben.")
+            elif config.reward_mode == REWARD_MODE_UNIT:
+                new_name = input(f"Neuen Einheitsnamen eingeben oder leerlassen (Aktuell: '{config.unit_name}')\n> ").strip()
+                while True:
+                    try:
+                        raw = input(f"Neue Anzahl pro Punkt eingeben oder leerlassen (Aktuell: {config.unit_per_point:g})\n> ").strip()
+                        if not raw: break
+                        val = float(raw)
+                        if val <= 0: print("Muss größer als 0 sein."); continue
+                        print(f"\nVorschau: {new_name} ({val:g}/Pt.)")
+                        c = confirm(f"Ist das korrekt?")
+                        if c is True:
+                            config.unit_per_point = val
+                            if new_name:
+                                config.unit_name = new_name
+                            print("Änderungen übernommen.")
+                            return config
+                        elif c is False: print("Vorgang abgebrochen."); return config
+                        elif c is None: break
+                    except ValueError:
+                        print("Ungültige Eingabe.")
 
         elif choice == "3":
-            c = confirm("Bist du sicher, dass du das Belohnungssystem deaktivieren möchtest?")
+            message = f"Bist du sicher, dass du das Belohnungssystem deaktivieren möchtest?\nAktueller Kontostand ({config.format_value(wallet.balance if wallet.balance else 0)}) bleibt erhalten."
+            c = confirm(message)
             if c is True:
                 config.enabled = False
                 print("Belohnungssystem deaktiviert.")
                 return config
             elif c is False:
+                print("Vorgang abgebrochen.")
+
+        elif choice == "4":
+            new_config, cancel = _configure_reward_mode(copy.deepcopy(config))
+            if cancel: continue
+            if confirm(f"Bist du sicher, dass du zu '{new_config.mode_label()}' wechseln möchtest?\nAktueller Kontostand ({config.format_value(wallet.balance if wallet.balance else 0)}) bleibt erhalten.") is True:
+                config.reward_mode   = new_config.reward_mode
+                config.unit_name     = new_config.unit_name
+                config.unit_per_point= new_config.unit_per_point
+                if new_config.reward_mode == "money":
+                    config.money_per_point = new_config.money_per_point
+                print("Modus geändert.")
+            else:
                 print("Vorgang abgebrochen.")
 
 
@@ -982,7 +1021,7 @@ def reset_options(app_config: AppConfig, reward_config: RewardConfig, wallet: Wa
             print("Belohnungskonfiguration zurückgesetzt.")
             changed = True
     elif choice == "5":
-        if confirm("Bist du sicher, dass du das Guthaben auf 0 € zurücksetzen möchtest? Es wird keine Änderung am Einlösungen- oder Notenänderungen-Log vorgenommen.") is True:
+        if confirm("Bist du sicher, dass du das Guthaben auf zurücksetzen möchtest? Es wird keine Änderung am Einlösungen- oder Notenänderungen-Log vorgenommen.") is True:
             wallet.balance = 0.0
             print("Guthaben zurückgesetzt.")
             changed = True
@@ -1152,20 +1191,21 @@ def print_configuration(mode: str, config: AppConfig | RewardConfig, start: str 
     """
         Prints configuration values.
         \nModes for AppConfig: 'app', 'paths', 'verbose_loading'.
-        \nModes for RewardConfig: 'reward', 'points_map', 'money_per_point'.
+        \nModes for RewardConfig: 'reward', 'points_map', 'value_per_point'.
     """
 
     # --- For RewardConfig ---
     if mode == "reward":
         status = "aktiviert" if config.enabled else "deaktiviert"
         print(start + f"Belohnungssystem: {status}")
-        print(f"Geld pro Punkt: {config.money_per_point:.2f} €")
-
+        print(f"Modus: {config.mode_label()}")
+        if config.reward_mode == "money":
+            print(f"Geld pro Punkt: {config.money_per_point:.2f} €")
+        elif config.reward_mode == "unit":
+            print(f"Einheit: {config.unit_name} ({config.unit_per_point:g}/Pt.)")
         print("Punkte pro Note:")
-        items = list(config.points_map.items())
-        for i, (k, v) in enumerate(items):
-            print(f"Note {k}: {v} Pt.", end="\n")
-
+        for k, v in config.points_map.items():
+            print(f"Note {k}: {v} Pt.")
     elif mode == "points_map":
         print(start + "Punkte pro Note:")
         items = list(config.points_map.items())
@@ -1173,8 +1213,11 @@ def print_configuration(mode: str, config: AppConfig | RewardConfig, start: str 
             sep = "\n" if i < len(items) - 1 else "\n\n"
             print(f"Note {k}: {v} Pt.", end=sep)
 
-    elif mode == "money_per_point":
-        print(start + f"Geld pro Punkt: {config.money_per_point:.2f} €")
+    elif mode == "value_per_point":
+        if config.reward_mode == "money":
+            print(f"Geld pro Punkt: {config.money_per_point:.2f} €")
+        elif config.reward_mode == "unit":
+            print(f"Einheit: {config.unit_name} ({config.unit_per_point:g}/Pt.)")
 
     # --- For AppConfig ---
     elif mode == "app":
@@ -1441,7 +1484,7 @@ def _wrap(text: str, width: int, indent: int = 22) -> str:
     return f"\n{pad}".join(lines)
 
 
-def _diff_state(snap: dict, subjects, wallet, reward_config, app_config) -> list[str]:
+def _diff_state(snap: dict, subjects: list[Subject], wallet: Wallet, reward_config: RewardConfig, app_config: AppConfig) -> list[str]:
     changes = []
 
     # Subjects & grades
@@ -1463,8 +1506,10 @@ def _diff_state(snap: dict, subjects, wallet, reward_config, app_config) -> list
 
     # Wallet balance & redemptions
     old_bal, new_bal = snap["wallet"]["balance"], wallet.balance
-    if abs(new_bal - old_bal) > 0.001:
-        changes.append(f"  ~ Kontostand: {old_bal:.2f} → {new_bal:.2f} € ({new_bal - old_bal:+.2f} €)")
+    diff = new_bal - old_bal
+    if abs(diff) > 0.001:
+        sign = "+" if diff > 0 else ""
+        changes.append(f"  ~ Kontostand: {reward_config.format_value(old_bal)} → {reward_config.format_value(new_bal)} ({sign}{reward_config.format_value(diff)})")
     old_red, new_red = len(snap["wallet"]["redemptions"]), len(wallet.redemptions)
     if new_red < old_red:
         changes.append(f"  ~ Einlösungen-Log geleert ({old_red} → {new_red} Einträge)")
@@ -1488,6 +1533,18 @@ def _diff_state(snap: dict, subjects, wallet, reward_config, app_config) -> list
         new_v = reward_config.points_map.get(int(k), 0)
         if old_v != new_v:
             changes.append(f"  ~ Punkte Note {k}: {old_v} → {new_v}")
+
+    # reward mode / unit changes
+    old_mode = old_rc.get("reward_mode", "money")
+    mode_labels = {"money": "Geld (€)", "unit": "Eigene Einheit", "points": "Nur Punkte"}
+    if old_mode != reward_config.reward_mode:
+        changes.append(f"  ~ Belohnungsmodus: {mode_labels.get(old_mode, old_mode)} → {mode_labels.get(reward_config.reward_mode, reward_config.reward_mode)}")
+    old_unit = old_rc.get("unit_name", "")
+    if old_unit != reward_config.unit_name:
+        changes.append(f"  ~ Einheit: '{old_unit}' → '{reward_config.unit_name}'")
+    old_upp = old_rc.get("unit_per_point", 1.0)
+    if abs(old_upp - reward_config.unit_per_point) > 0.0001:
+        changes.append(f"  ~ Einheiten pro Punkt: {old_upp:g} → {reward_config.unit_per_point:g}")
 
     # AppConfig
     field_labels = {
@@ -1516,3 +1573,48 @@ def show_save_preview(changes: list[str]) -> None:
     else:
         for line in changes:
             print(line)
+
+
+def _configure_reward_mode(config: RewardConfig) -> tuple[RewardConfig, bool]:
+    """Walk the user through choosing/changing reward mode and unit settings. Return True if user cancels."""
+
+    mode_choice = print_menu({
+        "1": "Geld (€)",
+        "2": "Eigene Einheit (z.B. Sammelkarten)",
+        "3": "Nur Punkte (keine Umrechnung)",
+        "z": "Zurück"
+    }, "Wie sollen Punkte belohnt werden?", start="\n")
+
+    if mode_choice == "z":
+        return config, True
+
+    if mode_choice == "1":
+        config.reward_mode = REWARD_MODE_MONEY
+        while True:
+            try:
+                raw = input(f"Geldwert pro Punkt (Leerlassen für {config.money_per_point:.2f} €/Pt.)\n> ").strip()
+                if raw:
+                    config.money_per_point = float(raw)
+                break
+            except ValueError:
+                print("Ungültige Eingabe. Bitte eine Zahl eingeben.")
+
+    elif mode_choice == "2":
+        config.reward_mode = REWARD_MODE_UNIT
+        unit_name = input("Name der Einheit eingeben (z.B. 'Sammelkarten'): ").strip()
+        config.unit_name = unit_name if unit_name else "Einheiten"
+        while True:
+            try:
+                raw = input(f"Anzahl '{config.unit_name}' pro Punkt (Leerlassen für 1): ").strip()
+                config.unit_per_point = float(raw) if raw else 1.0
+                if config.unit_per_point <= 0:
+                    print("Muss größer als 0 sein.")
+                    continue
+                break
+            except ValueError:
+                print("Ungültige Eingabe. Bitte eine Zahl eingeben.")
+
+    elif mode_choice == "3":
+        config.reward_mode = REWARD_MODE_POINTS
+
+    return config, False

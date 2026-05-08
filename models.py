@@ -2,6 +2,9 @@ from datetime import datetime
 from enum import Enum
 DEFAULT_POINTS_MAP = {1: 10, 2: 6, 3: 2, 4: 0, 5: 0, 6: 0}  # 5€ / 3€ / 1€ / 0 / 0 / 0 at default 0.50€/pt
 DEFAULT_MONEY_PER_POINT = 0.50                              # default
+REWARD_MODE_MONEY  = "money"
+REWARD_MODE_UNIT   = "unit"
+REWARD_MODE_POINTS = "points"
 
 class Grade:
     def __init__(self, value: float, weight: float = 1.0, labels: list[str] | None = None):
@@ -76,7 +79,7 @@ class Wallet:
             "date": datetime.now().strftime("%d.%m.%Y %H:%M")   # e.g. "11.04.2026 14:30"
         })
 
-    def log_grade_event(self, action: str, subject: str, value: float, weight: float, labels: list[str], money_delta: float = None) -> None:
+    def log_grade_event(self, action: str, subject: str, value: float, weight: float, labels: list[str], value_delta: float = None) -> None:
         """Log a grade add/edit/delete event. action: '+', '-', '~'"""
         self.grade_log.append({
             "action": action,
@@ -84,7 +87,7 @@ class Wallet:
             "value": value,
             "weight": weight,
             "labels": labels,
-            "money_delta": money_delta,   # None if rewards disabled
+            "value_delta": value_delta,   # None if rewards disabled
             "date": datetime.now().strftime("%d.%m.%Y %H:%M")
         })
 
@@ -103,16 +106,23 @@ class Wallet:
             grade_log=data.get("grade_log", [])  # backwards-compatible
         )
 
+
 class RewardConfig:
     def __init__(
         self,
         enabled: bool = False,
         points_map: dict[int, int] = None,
         money_per_point: float = DEFAULT_MONEY_PER_POINT,
+        reward_mode: str = REWARD_MODE_MONEY,  # "money" | "unit" | "points"
+        unit_name: str = "",                   # e.g. "Sammelkarten"; only for "unit" mode
+        unit_per_point: float = 1.0,           # units per point; only for "unit" mode
     ):
         self.enabled = enabled
         self.points_map = points_map if points_map is not None else DEFAULT_POINTS_MAP.copy()
         self.money_per_point = money_per_point
+        self.reward_mode = reward_mode
+        self.unit_name = unit_name
+        self.unit_per_point = unit_per_point
 
     def points_for_grade(self, value: float) -> int:
         """Return points for a grade value. Rounds to nearest integer key."""
@@ -121,12 +131,38 @@ class RewardConfig:
     def money_for_points(self, points: int) -> float:
         """Convert points to monetary value."""
         return points * self.money_per_point
+    
+    def units_for_points(self, points: int) -> float:
+        """Convert points to the configured reward value."""
+        if self.reward_mode == REWARD_MODE_MONEY:
+            return self.money_for_points(points)
+        if self.reward_mode == REWARD_MODE_UNIT:
+            return points * self.unit_per_point
+        return float(points)  # points-only: 1:1
+
+    def format_value(self, value: float) -> str:
+        """Format a reward value with its unit label."""
+        if self.reward_mode == REWARD_MODE_MONEY:
+            return f"{value:.2f} €"
+        if self.reward_mode == REWARD_MODE_UNIT:
+            return f"{value:g} {self.unit_name}"
+        return f"{int(value)} Pt."
+
+    def mode_label(self) -> str:
+        if self.reward_mode == REWARD_MODE_MONEY:
+            return "Geld (€)"
+        if self.reward_mode == REWARD_MODE_UNIT:
+            return f"Eigene Einheit ({self.unit_name}, {self.unit_per_point:g}/Pt.)"
+        return "Nur Punkte"
 
     def to_dict(self) -> dict:
         return {
             "enabled": self.enabled,
             "points_map": {int(k): v for k, v in self.points_map.items()},
             "money_per_point": self.money_per_point,
+            "reward_mode": self.reward_mode,
+            "unit_name": self.unit_name,
+            "unit_per_point": self.unit_per_point,
         }
 
     @classmethod
@@ -135,6 +171,9 @@ class RewardConfig:
             enabled=data.get("enabled", False),
             points_map={int(k): v for k, v in data["points_map"].items()},
             money_per_point=data["money_per_point"],
+            reward_mode=data.get("reward_mode", REWARD_MODE_MONEY),  # backwards-compatible
+            unit_name=data.get("unit_name", ""),
+            unit_per_point=data.get("unit_per_point", 1.0),
         )
 
 
