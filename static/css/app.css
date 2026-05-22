@@ -1,0 +1,367 @@
+/* =========================================================
+   Material Design 3 – Design Tokens (CSS custom properties)
+   ========================================================= */
+:root {
+  /* M3 colour roles (light scheme) */
+  --md-sys-color-primary:            #006874;
+  --md-sys-color-on-primary:         #ffffff;
+  --md-sys-color-primary-container:  #97f0ff;
+  --md-sys-color-on-primary-container: #001f24;
+
+  --md-sys-color-secondary:          #4a6267;
+  --md-sys-color-on-secondary:       #ffffff;
+  --md-sys-color-secondary-container: #cde7ed;
+  --md-sys-color-on-secondary-container: #051f23;
+
+  --md-sys-color-surface:            #fafdfd;
+  --md-sys-color-surface-variant:    #dbe4e6;
+  --md-sys-color-on-surface:         #191c1d;
+  --md-sys-color-on-surface-variant: #3f484a;
+  --md-sys-color-outline:            #6f797a;
+  --md-sys-color-outline-variant:    #bfc8ca;
+
+  --md-sys-color-background:         #fafdfd;
+  --md-sys-color-on-background:      #191c1d;
+
+  --md-sys-color-error:              #ba1a1a;
+  --md-sys-color-on-error:           #ffffff;
+  --md-sys-color-error-container:    #ffdad6;
+
+  --md-sys-color-surface-container-lowest:  #ffffff;
+  --md-sys-color-surface-container-low:     #f4f7f8;
+  --md-sys-color-surface-container:         #eef1f2;
+  --md-sys-color-surface-container-high:    #e8ebec;
+  --md-sys-color-surface-container-highest: #e2e5e6;
+
+  /* Layout dimensions */
+  --nav-drawer-width:   256px;
+  --bottom-nav-height:  80px;
+  --top-app-bar-height: 64px;
+
+  /* Elevation shadows (M3 tonal elevations omitted for simplicity) */
+  --elevation-1: 0 1px 2px rgba(0,0,0,.12), 0 1px 3px rgba(0,0,0,.08);
+  --elevation-2: 0 2px 6px rgba(0,0,0,.12), 0 1px 4px rgba(0,0,0,.08);
+
+  /* Typography scale */
+  --typescale-display-large:   57px/64px "Roboto", sans-serif;
+  --typescale-headline-medium: 28px/36px "Roboto", sans-serif;
+  --typescale-title-large:     22px/28px "Roboto", sans-serif;
+  --typescale-title-medium:    16px/24px "Roboto", sans-serif;
+  --typescale-body-large:      16px/24px "Roboto", sans-serif;
+  --typescale-body-medium:     14px/20px "Roboto", sans-serif;
+  --typescale-label-large:     14px/20px "Roboto", sans-serif;
+
+  /* Shape (border-radius) */
+  --shape-corner-none:        0px;
+  --shape-corner-extra-small: 4px;
+  --shape-corner-small:       8px;
+  --shape-corner-medium:      12px;
+  --shape-corner-large:       16px;
+  --shape-corner-extra-large: 28px;
+  --shape-corner-full:        50px;
+}
+
+/* =========================================================
+   Reset & Base
+   ========================================================= */
+*, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+
+html, body {
+  height: 100%;
+  font-family: "Roboto", sans-serif;
+  font-size: 16px;
+  background-color: var(--md-sys-color-background);
+  color: var(--md-sys-color-on-background);
+}
+
+a { text-decoration: none; color: inherit; }
+ul { list-style: none; }
+
+/* =========================================================
+   App Shell Layout
+   ========================================================= */
+body {
+  display: flex;
+  /* Drawer sits beside main on desktop */
+}
+
+/* =========================================================
+   Navigation Drawer (Desktop – persistent)
+   ========================================================= */
+.nav-drawer {
+  position: fixed;
+  top: 0;
+  left: 0;
+  width: var(--nav-drawer-width);
+  height: 100dvh;
+  background-color: var(--md-sys-color-surface-container-low);
+  display: flex;
+  flex-direction: column;
+  padding: 16px 12px;
+  gap: 4px;
+  z-index: 200;
+  transition: transform 0.3s cubic-bezier(0.2, 0, 0, 1);
+}
+
+.nav-drawer__header {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  padding: 16px 16px 24px;
+  color: var(--md-sys-color-on-surface-variant);
+}
+
+.nav-drawer__logo {
+  font-size: 28px;
+  color: var(--md-sys-color-primary);
+  /* Fill the icon */
+  font-variation-settings: 'FILL' 1;
+}
+
+.nav-drawer__title {
+  font: 500 var(--typescale-title-large);
+  color: var(--md-sys-color-on-surface);
+}
+
+.nav-drawer__list {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+}
+
+/* M3 Navigation Drawer item */
+.nav-item {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  padding: 0 16px;
+  height: 56px;
+  border-radius: var(--shape-corner-full);
+  font: 500 var(--typescale-label-large);
+  color: var(--md-sys-color-on-surface-variant);
+  cursor: pointer;
+  transition: background-color 0.2s, color 0.2s;
+  position: relative;
+  overflow: hidden;
+}
+
+.nav-item .material-symbols-rounded {
+  font-size: 24px;
+  font-variation-settings: 'FILL' 0;
+  transition: font-variation-settings 0.2s;
+}
+
+/* Active state */
+.nav-item--active,
+.nav-item:is(.nav-item--active) {
+  background-color: var(--md-sys-color-secondary-container);
+  color: var(--md-sys-color-on-secondary-container);
+}
+
+.nav-item--active .material-symbols-rounded {
+  font-variation-settings: 'FILL' 1;
+  color: var(--md-sys-color-on-secondary-container);
+}
+
+/* Hover state */
+.nav-item:hover:not(.nav-item--active) {
+  background-color: color-mix(in srgb, var(--md-sys-color-on-surface) 8%, transparent);
+}
+
+/* =========================================================
+   Top App Bar (Mobile only)
+   ========================================================= */
+.top-app-bar {
+  display: none; /* hidden on desktop */
+  align-items: center;
+  gap: 8px;
+  height: var(--top-app-bar-height);
+  padding: 0 4px 0 4px;
+  background-color: var(--md-sys-color-surface-container);
+  position: sticky;
+  top: 0;
+  z-index: 100;
+  box-shadow: var(--elevation-1);
+}
+
+.top-app-bar__title {
+  font: 500 var(--typescale-title-large);
+  color: var(--md-sys-color-on-surface);
+}
+
+/* =========================================================
+   Main Content Area
+   ========================================================= */
+.main-content {
+  margin-left: var(--nav-drawer-width);
+  flex: 1;
+  min-height: 100dvh;
+  display: flex;
+  flex-direction: column;
+  overflow-x: hidden;
+}
+
+.page-container {
+  flex: 1;
+  padding: 24px;
+  max-width: 1200px;
+}
+
+/* =========================================================
+   Bottom Navigation Bar (Mobile only)
+   ========================================================= */
+.bottom-nav {
+  display: none; /* hidden on desktop */
+  position: fixed;
+  bottom: 0;
+  left: 0;
+  right: 0;
+  height: var(--bottom-nav-height);
+  background-color: var(--md-sys-color-surface-container);
+  box-shadow: 0 -1px 3px rgba(0,0,0,0.12);
+  z-index: 200;
+  justify-content: space-around;
+  align-items: center;
+  padding: 0 8px;
+}
+
+.bottom-nav__item {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: 4px;
+  flex: 1;
+  height: 100%;
+  border-radius: var(--shape-corner-large);
+  padding: 12px 0 16px;
+  font: var(--typescale-label-large);
+  font-size: 12px;
+  color: var(--md-sys-color-on-surface-variant);
+  transition: color 0.2s;
+  cursor: pointer;
+  position: relative;
+}
+
+.bottom-nav__item .material-symbols-rounded {
+  font-size: 24px;
+  font-variation-settings: 'FILL' 0;
+  transition: font-variation-settings 0.2s;
+}
+
+/* Active indicator pill */
+.bottom-nav__item--active {
+  color: var(--md-sys-color-on-secondary-container);
+}
+
+.bottom-nav__item--active .material-symbols-rounded {
+  font-variation-settings: 'FILL' 1;
+  /* M3 active indicator */
+  background-color: var(--md-sys-color-secondary-container);
+  border-radius: var(--shape-corner-full);
+  padding: 4px 20px;
+}
+
+/* =========================================================
+   Drawer Backdrop (Mobile)
+   ========================================================= */
+.drawer-backdrop {
+  display: none;
+  position: fixed;
+  inset: 0;
+  background: rgba(0,0,0,0.32);
+  z-index: 150;
+  opacity: 0;
+  transition: opacity 0.3s;
+}
+
+.drawer-backdrop.visible {
+  opacity: 1;
+}
+
+/* =========================================================
+   Shared component utilities
+   ========================================================= */
+.icon-btn {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 48px;
+  height: 48px;
+  border: none;
+  background: transparent;
+  border-radius: var(--shape-corner-full);
+  cursor: pointer;
+  color: var(--md-sys-color-on-surface);
+  font-size: 24px;
+  transition: background-color 0.2s;
+}
+
+.icon-btn:hover {
+  background-color: color-mix(in srgb, var(--md-sys-color-on-surface) 8%, transparent);
+}
+
+.icon-btn .material-symbols-rounded {
+  font-size: 24px;
+}
+
+/* Page placeholder (loading state) */
+.page-placeholder {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: 16px;
+  height: 50vh;
+  color: var(--md-sys-color-on-surface-variant);
+}
+
+.page-placeholder__icon {
+  font-size: 64px;
+  font-variation-settings: 'FILL' 1;
+  color: var(--md-sys-color-primary);
+}
+
+/* =========================================================
+   Responsive breakpoints
+   ========================================================= */
+
+/* Compact (mobile) – drawer hidden, bottom nav visible */
+@media (max-width: 768px) {
+  .nav-drawer {
+    transform: translateX(calc(-1 * var(--nav-drawer-width)));
+  }
+
+  .nav-drawer.open {
+    transform: translateX(0);
+  }
+
+  .drawer-backdrop {
+    display: block;
+  }
+
+  .top-app-bar {
+    display: flex;
+  }
+
+  .bottom-nav {
+    display: flex;
+  }
+
+  .main-content {
+    margin-left: 0;
+    padding-bottom: var(--bottom-nav-height);
+  }
+
+  .page-container {
+    padding: 16px;
+  }
+}
+
+/* Medium+ – drawer visible, no bottom nav */
+@media (min-width: 769px) {
+  .top-app-bar    { display: none; }
+  .bottom-nav     { display: none; }
+  .drawer-backdrop { display: none !important; }
+  .nav-drawer     { transform: translateX(0) !important; }
+}

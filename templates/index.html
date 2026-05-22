@@ -1,0 +1,126 @@
+<!DOCTYPE html>
+<html lang="de">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Notenrechner</title>
+
+  <!-- Material Design 3 (Material Web Components) -->
+  <script type="importmap">
+    {
+      "imports": {
+        "@material/web/": "https://esm.run/@material/web/"
+      }
+    }
+  </script>
+  <script type="module">
+    import "@material/web/all.js";
+  </script>
+
+  <!-- Google Fonts: Roboto (M3 default) -->
+  <link rel="preconnect" href="https://fonts.googleapis.com" />
+  <link href="https://fonts.googleapis.com/css2?family=Roboto:wght@400;500;700&family=Roboto+Mono&display=swap" rel="stylesheet" />
+  <!-- Material Symbols -->
+  <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Material+Symbols+Rounded:opsz,wght,FILL,GRAD@20..48,100..700,0..1,-50..200" />
+
+  <link rel="stylesheet" href="/static/css/app.css" />
+</head>
+<body>
+
+  <!-- =====================================================================
+       DESKTOP: Navigation Drawer (persistent, left side)
+       ===================================================================== -->
+  <nav class="nav-drawer" id="navDrawer" aria-label="Hauptnavigation">
+    <div class="nav-drawer__header">
+      <span class="material-symbols-rounded nav-drawer__logo">school</span>
+      <span class="nav-drawer__title">Notenrechner</span>
+    </div>
+
+    <ul class="nav-drawer__list" role="list">
+      <li>
+        <a href="#overview"  class="nav-item nav-item--active" data-page="overview">
+          <span class="material-symbols-rounded">bar_chart</span>
+          Übersicht
+        </a>
+      </li>
+      <li>
+        <a href="#grades"    class="nav-item" data-page="grades">
+          <span class="material-symbols-rounded">edit_note</span>
+          Noten
+        </a>
+      </li>
+      <li>
+        <a href="#wallet"    class="nav-item" data-page="wallet">
+          <span class="material-symbols-rounded">account_balance_wallet</span>
+          Konto
+        </a>
+      </li>
+      <li>
+        <a href="#stats"     class="nav-item" data-page="stats">
+          <span class="material-symbols-rounded">insights</span>
+          Statistiken
+        </a>
+      </li>
+      <li>
+        <a href="#settings"  class="nav-item" data-page="settings">
+          <span class="material-symbols-rounded">settings</span>
+          Einstellungen
+        </a>
+      </li>
+    </ul>
+  </nav>
+
+  <!-- =====================================================================
+       MAIN CONTENT
+       ===================================================================== -->
+  <main class="main-content" id="mainContent">
+    <!-- Top app bar (mobile only) -->
+    <header class="top-app-bar" id="topAppBar">
+      <button class="icon-btn" id="drawerToggle" aria-label="Menü öffnen">
+        <span class="material-symbols-rounded">menu</span>
+      </button>
+      <span class="top-app-bar__title" id="pageTitle">Übersicht</span>
+    </header>
+
+    <!-- Page container – JS swaps content here -->
+    <div class="page-container" id="pageContainer">
+      <!-- pages injected by JS -->
+      <div class="page-placeholder">
+        <span class="material-symbols-rounded page-placeholder__icon">school</span>
+        <p>Lade Daten…</p>
+      </div>
+    </div>
+  </main>
+
+  <!-- =====================================================================
+       MOBILE: Bottom Navigation Bar
+       ===================================================================== -->
+  <nav class="bottom-nav" aria-label="Hauptnavigation">
+    <a href="#overview"  class="bottom-nav__item bottom-nav__item--active" data-page="overview">
+      <span class="material-symbols-rounded">bar_chart</span>
+      <span>Übersicht</span>
+    </a>
+    <a href="#grades"    class="bottom-nav__item" data-page="grades">
+      <span class="material-symbols-rounded">edit_note</span>
+      <span>Noten</span>
+    </a>
+    <a href="#wallet"    class="bottom-nav__item" data-page="wallet">
+      <span class="material-symbols-rounded">account_balance_wallet</span>
+      <span>Konto</span>
+    </a>
+    <a href="#stats"     class="bottom-nav__item" data-page="stats">
+      <span class="material-symbols-rounded">insights</span>
+      <span>Statistiken</span>
+    </a>
+    <a href="#settings"  class="bottom-nav__item" data-page="settings">
+      <span class="material-symbols-rounded">settings</span>
+      <span>Mehr</span>
+    </a>
+  </nav>
+
+  <!-- Mobile drawer backdrop -->
+  <div class="drawer-backdrop" id="drawerBackdrop"></div>
+
+  <script src="/static/js/app.js"></script>
+</body>
+</html>
