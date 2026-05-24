@@ -24,6 +24,14 @@
   <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Material+Symbols+Rounded:opsz,wght,FILL,GRAD@20..48,100..700,0..1,-50..200" />
 
   <link rel="stylesheet" href="/static/css/app.css" />
+
+  <!-- PWA -->
+  <link rel="manifest" href="/static/manifest.json" />
+  <meta name="theme-color" content="#006874" media="(prefers-color-scheme: light)" />
+  <meta name="theme-color" content="#003741" media="(prefers-color-scheme: dark)" />
+  <meta name="apple-mobile-web-app-capable" content="yes" />
+  <meta name="apple-mobile-web-app-status-bar-style" content="default" />
+  <meta name="apple-mobile-web-app-title" content="Notenrechner" />
 </head>
 <body>
 
@@ -68,6 +76,12 @@
         </a>
       </li>
     </ul>
+  <div class="nav-drawer__footer">
+      <button class="theme-toggle" id="themeToggle">
+        <span class="material-symbols-rounded" id="themeIcon">dark_mode</span>
+        <span id="themeLabel">Dark Mode</span>
+      </button>
+    </div>
   </nav>
 
   <!-- =====================================================================
@@ -80,6 +94,9 @@
         <span class="material-symbols-rounded">menu</span>
       </button>
       <span class="top-app-bar__title" id="pageTitle">Übersicht</span>
+      <button class="icon-btn" id="themeToggleMobile" aria-label="Theme wechseln" style="margin-left:auto">
+        <span class="material-symbols-rounded" id="themeIconMobile">dark_mode</span>
+      </button>
     </header>
 
     <!-- Page container – JS swaps content here -->
@@ -121,6 +138,12 @@
   <!-- Mobile drawer backdrop -->
   <div class="drawer-backdrop" id="drawerBackdrop"></div>
 
-  <script src="/static/js/app.js"></script>
+  <script src="/static/js/app.js" type="module"></script>
+  <script>
+    if ("serviceWorker" in navigator) {
+      navigator.serviceWorker.register("/static/sw.js")
+        .catch(err => console.warn("SW registration failed:", err));
+    }
+  </script>
 </body>
 </html>
