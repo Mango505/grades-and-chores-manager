@@ -1,7 +1,7 @@
 /**
  * wallet.js – Balance, redemption form, grade log & redemption history
  */
-import { apiFetch, showSnackbar } from "../app.js";
+import { apiFetch, showSnackbar, setPrimaryAction, clearPrimaryAction } from "../app.js";
 import { card, statChip, emptyState, errorBanner, openDialog, injectComponentStyles } from "../components.js";
 
 export default async function render(container) {
@@ -19,6 +19,7 @@ export default async function render(container) {
   }
 
   if (!rewardConfig.enabled) {
+    clearPrimaryAction();
     container.innerHTML = emptyState("account_balance_wallet",
       "Belohnungssystem deaktiviert. Aktiviere es unter Einstellungen.");
     return;
@@ -65,6 +66,15 @@ export default async function render(container) {
                 &nbsp;|&nbsp; <strong>${e.value}</strong> (${e.weight}x)
                 ${e.labels?.length ? `| ${e.labels.join(", ")}` : ""}${delta}`;
       }, "Keine Notenänderungen vorhanden.")}`;
+
+  // FAB
+  if (wallet.balance > 0) {
+    setPrimaryAction("redeem", "Guthaben einlösen", () => {
+      container.querySelector("#btnRedeem")?.click();
+    });
+  } else {
+    clearPrimaryAction();
+  }
 
   // Redeem dialog
   container.querySelector("#btnRedeem")?.addEventListener("click", () => {

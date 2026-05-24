@@ -1,7 +1,7 @@
 /**
  * overview.js – Subject cards + label filter + reorder mode + skeleton loading
  */
-import { apiFetch, showSnackbar, skeletonGrid } from "../app.js";
+import { apiFetch, showSnackbar, skeletonGrid, setPrimaryAction } from "../app.js";
 import { card, statChip, gradeBadge, emptyState, errorBanner, openDialog, injectComponentStyles } from "../components.js";
 
 let reorderMode = false;
@@ -27,6 +27,11 @@ export default async function render(container) {
   }
 
   renderShell(container, overview, subjects);
+
+  // Register FAB – triggers the add-subject dialog
+  setPrimaryAction("add", "Fach erstellen", () => {
+    container.querySelector("#btnAddSubject")?.click();
+  });
 }
 
 function renderShell(container, overview, subjects) {

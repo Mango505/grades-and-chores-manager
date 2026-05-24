@@ -4,7 +4,7 @@
  * Layout: scrollable tab bar per subject → grade table → add button
  * Tab selection is kept in module-level state so it survives re-renders.
  */
-import { apiFetch, showSnackbar, skeletonGrid } from "../app.js";
+import { apiFetch, showSnackbar, skeletonGrid, setPrimaryAction } from "../app.js";
 import { gradeBadge, emptyState, errorBanner, openDialog,
          injectComponentStyles, validateAll, validators } from "../components.js";
 
@@ -36,6 +36,7 @@ async function load(container) {
   // Keep selection valid across re-renders
   selectedSubject = allSubjects.find(s => s.name === selectedSubject?.name) ?? allSubjects[0];
   renderShell(container);
+  setPrimaryAction("add", "Note hinzufügen", () => openGradeDialog(container, null));
 }
 
 // ---------------------------------------------------------------------------
@@ -109,6 +110,7 @@ function bindEvents(container) {
     btn.addEventListener("click", () => {
       selectedSubject = allSubjects.find(s => s.name === btn.dataset.name);
       renderShell(container);
+  setPrimaryAction("add", "Note hinzufügen", () => openGradeDialog(container, null));
     });
   });
 

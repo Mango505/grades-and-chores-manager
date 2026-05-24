@@ -8,12 +8,13 @@
  *  4. Money-per-point or unit config (context-sensitive)
  *  5. App info (version, data paths via /api/app-config once added)
  */
-import { apiFetch, showSnackbar } from "../app.js";
+import { apiFetch, showSnackbar, clearPrimaryAction } from "../app.js";
 import { card, emptyState, errorBanner, openDialog, injectComponentStyles } from "../components.js";
 
 export default async function render(container) {
   injectComponentStyles();
   injectSettingsStyles();
+  clearPrimaryAction();
 
   let cfg;
   try {
@@ -62,7 +63,7 @@ function renderShell(container, cfg) {
       <div class="se-label" style="margin-bottom:12px">Belohnungsmodus</div>
       <div class="se-mode-group">
         ${["money","unit","points"].map(m => `
-          <button class="se-mode-btn ${cfg.reward_mode===m?"se-mode-btn--active":""}"
+          <button class="tab-pill ${cfg.reward_mode===m?"tab-pill--active":""}"
                   data-mode="${m}">${modeLabel[m]}</button>`).join("")}
       </div>
     </div>
@@ -103,10 +104,14 @@ function renderShell(container, cfg) {
     <!-- App info -->
     <div class="card se-section" style="margin-top:8px">
       <div class="se-label">App-Info</div>
-      <p style="font-size:13px;color:var(--md-sys-color-on-surface-variant);margin-top:8px">
+      <p style="font-size:13px;color:var(--md-sys-color-on-surface-variant);margin:8px 0 16px">
         Notenrechner – Bayerisches Notensystem 1–6<br>
         Web-Migration basiert auf dem Python-CLI-Original.
       </p>
+      <md-filled-tonal-button id="btnBackup">
+        <span class="material-symbols-rounded" slot="icon">download</span>
+        Backup herunterladen (ZIP)
+      </md-filled-tonal-button>
     </div>`;
 
   bindEvents(container, cfg);
@@ -170,6 +175,15 @@ function bindEvents(container, cfg) {
     try { await saveConfig(cfg); showSnackbar("Punkte gespeichert."); renderShell(container, cfg); }
     catch(err) { showSnackbar(err.message, "error"); }
   });
+
+  // Backup download
+  container.querySelector("#btnBackup")?.addEventListener("click", () => {
+    // Trigger download via hidden link to the backup API route
+    const a = document.createElement("a");
+    a.href = "/api/backup";
+    a.click();
+    showSnackbar("Backup wird heruntergeladen…");
+  });
 }
 
 // ---- Save helper ----
@@ -191,12 +205,7 @@ function injectSettingsStyles() {
     .se-sublabel { font-size:13px;color:var(--md-sys-color-on-surface-variant);margin-top:2px; }
     .se-row      { display:flex;align-items:center;justify-content:space-between;gap:12px; }
     .se-mode-group { display:flex;gap:8px;flex-wrap:wrap; }
-    .se-mode-btn { padding:8px 18px;border-radius:var(--shape-corner-full);
-                   border:1px solid var(--md-sys-color-outline);background:transparent;
-                   cursor:pointer;font-size:14px;color:var(--md-sys-color-on-surface);
-                   transition:background .2s,color .2s; }
-    .se-mode-btn--active { background:var(--md-sys-color-primary);color:var(--md-sys-color-on-primary);
-                           border-color:var(--md-sys-color-primary); }
+    /* mode buttons now use shared tab-pill from app.css */
     .se-pts-table { width:100%;border-collapse:collapse;font-size:14px; }
     .se-pts-table td { padding:6px 4px; }
     .st-pts-input { width:80px;padding:6px 8px;border-radius:var(--shape-corner-extra-small);
