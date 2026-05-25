@@ -7,7 +7,6 @@
 // ---------------------------------------------------------------------------
 const PAGES = {
   overview: { title: "Übersicht",     loader: () => import("/static/js/pages/overview.js") },
-  grades:   { title: "Noten",         loader: () => import("/static/js/pages/grades.js")   },
   wallet:   { title: "Konto",         loader: () => import("/static/js/pages/wallet.js")   },
   stats:    { title: "Statistiken",   loader: () => import("/static/js/pages/stats.js")    },
   settings: { title: "Einstellungen", loader: () => import("/static/js/pages/settings.js") },

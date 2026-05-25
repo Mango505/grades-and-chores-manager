@@ -1,6 +1,6 @@
 /**
  * stats.js – Statistics | Export | Compare
- * Tab bar uses shared .tab-pill class from app.css (no injected grade styles needed).
+ * Tab bar uses shared .m3-tab class from app.css.
  */
 import { apiFetch, showSnackbar, clearPrimaryAction } from "../app.js";
 import { card, statChip, gradeBadge, emptyState, errorBanner, injectComponentStyles } from "../components.js";
@@ -20,9 +20,9 @@ export default async function render(container) {
 function renderTabShell(container) {
   const tabs = { stats: "Statistiken", export: "Exportieren", compare: "Vergleichen" };
   container.innerHTML = `
-    <div style="display:flex;gap:8px;flex-wrap:wrap;margin-bottom:20px">
+    <div class="m3-tab-bar">
       ${Object.entries(tabs).map(([k, v]) =>
-        `<button class="tab-pill ${activeTab===k?"tab-pill--active":""}" data-tab="${k}">${v}</button>`
+        `<button class="m3-tab ${activeTab===k?"m3-tab--active":""}" data-tab="${k}">${v}</button>`
       ).join("")}
     </div>
     <div id="stContent"></div>`;
