@@ -1,18 +1,12 @@
 /**
- * components.js – Reusable M3-styled HTML builders + validation helpers.
- * Imported by all page modules.
+ * components.js – Shared UI builders.
+ * Uses a custom dialog instead of <md-dialog> for reliable centering + button behavior.
  */
 
-// ---------------------------------------------------------------------------
-// Card
-// ---------------------------------------------------------------------------
 export function card(innerHTML, extraClass = "") {
   return `<div class="card ${extraClass}">${innerHTML}</div>`;
 }
 
-// ---------------------------------------------------------------------------
-// Stat chip: small label above a bold value
-// ---------------------------------------------------------------------------
 export function statChip(label, value, colorVar = "--md-sys-color-primary") {
   return `<div class="stat-chip">
     <span class="stat-chip__label">${label}</span>
@@ -20,21 +14,12 @@ export function statChip(label, value, colorVar = "--md-sys-color-primary") {
   </div>`;
 }
 
-// ---------------------------------------------------------------------------
-// Grade badge: coloured circle 1 (green) → 6 (red)
-// ---------------------------------------------------------------------------
-const GRADE_COLORS = {
-  1: "#1b7e4a", 2: "#4a8c2a", 3: "#a08c00",
-  4: "#c45d00", 5: "#c43000", 6: "#8b0000",
-};
+const GRADE_COLORS = {1:"#1b7e4a",2:"#4a8c2a",3:"#a08c00",4:"#c45d00",5:"#c43000",6:"#8b0000"};
 export function gradeBadge(value) {
   const r = Math.min(6, Math.max(1, Math.round(value)));
-  return `<span class="grade-badge" style="background:${GRADE_COLORS[r] ?? "#555"}">${value}</span>`;
+  return `<span class="grade-badge" style="background:${GRADE_COLORS[r]??'#555'}">${value}</span>`;
 }
 
-// ---------------------------------------------------------------------------
-// Empty state / error banner
-// ---------------------------------------------------------------------------
 export function emptyState(icon, text) {
   return `<div class="page-placeholder">
     <span class="material-symbols-rounded page-placeholder__icon">${icon}</span>
@@ -48,42 +33,79 @@ export function errorBanner(msg) {
 }
 
 // ---------------------------------------------------------------------------
-// Dialog helper
+// Custom dialog – reliable centering, no md-dialog dependency
 // ---------------------------------------------------------------------------
 /**
- * Create, append, and open an <md-dialog>. Returns the element.
- * The caller listens to the "close" event and checks dlg.returnValue.
+ * Open a centered modal dialog.
+ * Returns an object with the same interface pages expect:
+ *   dlg.returnValue, dlg.querySelector(), dlg.addEventListener("close", fn)
+ *
+ * @param {string} headline
+ * @param {string} bodyHTML
+ * @param {string} confirmLabel
+ * @returns {{ returnValue: string, querySelector: fn, addEventListener: fn }}
  */
-export function openDialog(headline, bodyHTML, confirmLabel = "Speichern") {
+export function openDialog(headline, bodyHTML, confirmLabel = "Speichern", danger = false) {
   document.getElementById("app-dialog")?.remove();
-  const dlg = document.createElement("md-dialog");
-  dlg.id = "app-dialog";
-  dlg.innerHTML = `
-    <div slot="headline">${headline}</div>
-    <div slot="content" class="dialog-content">${bodyHTML}</div>
-    <div slot="actions">
-      <md-text-button value="cancel">Abbrechen</md-text-button>
-      <md-filled-button value="confirm">${confirmLabel}</md-filled-button>
+
+  const wrap = document.createElement("div");
+  wrap.id = "app-dialog";
+  wrap.innerHTML = `
+    <div class="dlg-backdrop">
+      <div class="dlg" role="dialog" aria-modal="true">
+        <div class="dlg-headline">${headline}</div>
+        <div class="dlg-content">${bodyHTML}</div>
+        <div class="dlg-actions">
+          <button class="dlg-cancel">Abbrechen</button>
+          <button class="dlg-confirm ${danger?'danger':''}">${confirmLabel}</button>
+        </div>
+      </div>
     </div>`;
-  document.body.appendChild(dlg);
-  dlg.open = true;
+  document.body.appendChild(wrap);
+
+  // Focus first input field after render
+  setTimeout(() => {
+    const first = wrap.querySelector("md-outlined-text-field, input, select");
+    first?.focus?.();
+  }, 80);
+
+  // Fake dlg object with the interface our pages use
+  const dlg = {
+    returnValue: "",
+    _cbs: {},
+    querySelector:    sel => wrap.querySelector(sel),
+    querySelectorAll: sel => wrap.querySelectorAll(sel),
+    addEventListener(ev, fn) {
+      this._cbs[ev] = this._cbs[ev] ?? [];
+      this._cbs[ev].push(fn);
+    },
+    _fire(ev) { (this._cbs[ev] ?? []).forEach(fn => fn()); },
+    close(val = "") {
+      this.returnValue = val;
+      wrap.remove();
+      this._fire("close");
+    },
+  };
+
+  wrap.querySelector(".dlg-cancel").addEventListener("click",  () => dlg.close("cancel"));
+  wrap.querySelector(".dlg-confirm").addEventListener("click", () => dlg.close("confirm"));
+  // Click outside to cancel
+  wrap.querySelector(".dlg-backdrop").addEventListener("click", e => {
+    if (e.target === e.currentTarget) dlg.close("cancel");
+  });
+  // Escape key
+  const escHandler = e => { if (e.key === "Escape") { dlg.close("cancel"); document.removeEventListener("keydown", escHandler); } };
+  document.addEventListener("keydown", escHandler);
+
   return dlg;
 }
 
 // ---------------------------------------------------------------------------
-// Inline field validation
+// Validation
 // ---------------------------------------------------------------------------
-/**
- * Validate one <md-outlined-text-field> with a rule function.
- * The rule function receives the raw string value and returns
- * an error message string, or "" if valid.
- *
- * @param {HTMLElement} field
- * @param {(value: string) => string} ruleFn
- * @returns {boolean} true if valid
- */
 export function validateField(field, ruleFn) {
-  const msg = ruleFn(field.value ?? "");
+  const val = field.value ?? "";
+  const msg = ruleFn(val);
   if (msg) {
     field.setAttribute("error", "");
     field.setAttribute("error-text", msg);
@@ -94,27 +116,20 @@ export function validateField(field, ruleFn) {
   return true;
 }
 
-/**
- * Validate multiple fields at once. All errors are shown simultaneously.
- * @param {Array<[HTMLElement, (value: string) => string]>} pairs
- * @returns {boolean}
- */
 export function validateAll(pairs) {
-  return pairs.map(([field, ruleFn]) => validateField(field, ruleFn))
-              .every(Boolean);
+  return pairs.map(([field, ruleFn]) => validateField(field, ruleFn)).every(Boolean);
 }
 
-/** Ready-made rule functions. */
 export const validators = {
   gradeValue: v => {
     const n = parseFloat(v);
-    if (v.trim() === "" || isNaN(n)) return "Pflichtfeld – bitte eine Zahl eingeben.";
+    if (v.trim() === "" || isNaN(n)) return "Bitte eine Zahl zwischen 1 und 6 eingeben.";
     if (n < 1 || n > 6)             return "Note muss zwischen 1 und 6 liegen.";
     return "";
   },
   positiveNumber: v => {
     const n = parseFloat(v);
-    if (v.trim() === "" || isNaN(n)) return "Pflichtfeld – bitte eine Zahl eingeben.";
+    if (v.trim() === "" || isNaN(n)) return "Bitte eine Zahl eingeben.";
     if (n <= 0)                      return "Muss größer als 0 sein.";
     return "";
   },
@@ -122,9 +137,9 @@ export const validators = {
 };
 
 // ---------------------------------------------------------------------------
-// Shared component CSS (injected once into <head>)
+// Shared component CSS
 // ---------------------------------------------------------------------------
-const COMPONENT_CSS = `
+const CSS = `
   .card { background:var(--md-sys-color-surface-container-low);
           border-radius:var(--shape-corner-large);padding:20px;box-shadow:var(--elevation-1); }
   .stat-chip { display:flex;flex-direction:column;align-items:center;gap:2px; }
@@ -136,9 +151,7 @@ const COMPONENT_CSS = `
                  color:#fff;font-weight:700;font-size:13px;flex-shrink:0; }
   .banner { display:flex;align-items:center;gap:8px;padding:12px 16px;
             border-radius:var(--shape-corner-medium);margin-bottom:16px;font-size:14px; }
-  .banner--error { background:var(--md-sys-color-error-container);
-                   color:var(--md-sys-color-error); }
-  .dialog-content { display:flex;flex-direction:column;gap:16px;padding-top:8px;min-width:280px; }
+  .banner--error { background:var(--md-sys-color-error-container);color:var(--md-sys-color-error); }
   .chip-row { display:flex;flex-wrap:wrap;gap:12px; }
   .divider  { height:1px;background:var(--md-sys-color-outline-variant);margin:12px 0; }
   .grade-row { display:flex;align-items:center;gap:10px;padding:6px 0;
@@ -155,11 +168,11 @@ const COMPONENT_CSS = `
   .icon-btn-sm[disabled] { opacity:.35;pointer-events:none; }
 `;
 
-let _cssInjected = false;
+let _injected = false;
 export function injectComponentStyles() {
-  if (_cssInjected) return;
-  _cssInjected = true;
+  if (_injected) return;
+  _injected = true;
   const s = document.createElement("style");
-  s.textContent = COMPONENT_CSS;
+  s.textContent = CSS;
   document.head.appendChild(s);
 }

@@ -708,3 +708,141 @@ md-filled-button, md-filled-tonal-button, md-text-button, md-outlined-button {
   background:var(--md-sys-color-surface-container);
 }
 .settings-menu-item .material-symbols-rounded { color:var(--md-sys-color-on-surface-variant); }
+
+/* =========================================================
+   FIXES BATCH
+   ========================================================= */
+
+/* Fix: drawer backdrop always intercepts mobile touches */
+.drawer-backdrop                { pointer-events: none; }
+.drawer-backdrop.visible        { pointer-events: auto; }
+
+/* Fix: nav items – stay centered; FAB uses visibility so layout is stable */
+.nav-drawer__list               { justify-content: center; }
+/* FAB always reserves space (visibility, not display) so items stay put */
+.nav-fab                        { visibility: visible; transition: opacity .2s, visibility .2s; }
+.nav-fab[hidden]                { display: flex !important; visibility: hidden; opacity: 0; pointer-events: none; }
+
+/* Fix: dialog MUST be centered – override any stacking issues */
+.dlg-backdrop {
+  position: fixed !important;
+  inset: 0 !important;
+  z-index: 1000 !important;
+  display: flex !important;
+  align-items: center !important;
+  justify-content: center !important;
+  padding: 24px !important;
+  background: rgba(0,0,0,.45) !important;
+}
+.dlg {
+  position: relative !important;
+  max-height: 90vh !important;
+  overflow: visible !important;
+}
+.dlg-content { overflow-y: auto; }
+
+/* Fix: M3 buttons need horizontal breathing room */
+md-filled-button, md-filled-tonal-button,
+md-text-button, md-outlined-button {
+  display: inline-flex;
+  margin: 4px;
+}
+
+/* Fix: subject grid cards need more visible gap */
+#subjectGrid { gap: 10px !important; }
+.ov-card.card { margin: 0; }
+
+/* Fix: settings menu items need more separation + dark mode contrast */
+.settings-menu-item {
+  margin-bottom: 4px;
+  border: 1px solid var(--md-sys-color-outline-variant);
+}
+@media (prefers-color-scheme: dark) {
+  :root:not([data-theme="light"]) .settings-menu-item {
+    background: var(--md-sys-color-surface-container-high);
+    border-color: var(--md-sys-color-outline-variant);
+  }
+}
+:root[data-theme="dark"] .settings-menu-item {
+  background: var(--md-sys-color-surface-container-high);
+  border-color: var(--md-sys-color-outline-variant);
+}
+
+/* Fix: stat chips row – no dividers, use CSS grid on mobile */
+.stat-banner-grid {
+  display: grid;
+  grid-template-columns: repeat(3, 1fr);
+  gap: 12px;
+  text-align: center;
+}
+@media (max-width: 480px) {
+  .stat-banner-grid { grid-template-columns: repeat(3, 1fr); gap: 8px; }
+  .stat-banner-grid .stat-chip__value { font-size: 18px; }
+}
+
+/* Fix: toolbar wraps better on mobile */
+.ov-toolbar {
+  display: flex;
+  gap: 8px;
+  align-items: center;
+  flex-wrap: wrap;
+  margin-bottom: 16px;
+}
+.ov-toolbar-left  { display: flex; gap: 8px; align-items: center; flex: 1; min-width: 0; }
+.ov-toolbar-right { display: flex; gap: 4px; align-items: center; flex-shrink: 0; }
+
+/* Fix: reset danger buttons */
+.btn-danger {
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+  padding: 10px 20px;
+  border-radius: var(--shape-corner-full);
+  border: none;
+  background: var(--md-sys-color-error);
+  color: var(--md-sys-color-on-error);
+  font-size: 14px;
+  font-weight: 500;
+  font-family: inherit;
+  cursor: pointer;
+  transition: opacity .15s;
+  width: 100%;
+  justify-content: flex-start;
+  margin-bottom: 8px;
+}
+.btn-danger:hover { opacity: .88; }
+.btn-danger .material-symbols-rounded { font-size: 20px; }
+
+/* =========================================================
+   Unified card style – border outline like settings cards
+   ========================================================= */
+.card {
+  border: 1px solid var(--md-sys-color-outline-variant);
+}
+
+/* Overview subject cards: more visible gap */
+#subjectGrid {
+  gap: 14px !important;
+}
+
+/* =========================================================
+   Dialog confirm button can be red (danger variant)
+   ========================================================= */
+.dlg-confirm.danger {
+  background: var(--md-sys-color-error);
+  color: var(--md-sys-color-on-error);
+}
+.dlg-confirm.danger:hover { opacity: .88; }
+
+/* =========================================================
+   Hide stat-banner vertical dividers on small screens
+   ========================================================= */
+@media (max-width: 500px) {
+  .stat-divider { display: none; }
+}
+
+/* Wallet / overview stat banner wraps gracefully */
+.card .stat-banner-grid,
+.card:has(.stat-chip) {
+  align-items: center;
+}

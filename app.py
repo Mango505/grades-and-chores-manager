@@ -377,5 +377,121 @@ def download_backup():
 
 # ---------------------------------------------------------------------------
 
+@app.route("/api/startup-status", methods=["GET"])
+def startup_status():
+    """Return load status for all four data files."""
+    from storage import (load_app_config as _lac, load_subjects as _ls,
+                         load_wallet as _lw, load_reward_config as _lr)
+
+    app_config_obj, ac_st = _lac(Config.APP_CONFIG_PATH)
+
+    def _res(p):
+        return p if os.path.isabs(p) else os.path.join(Config.DATA_DIR, os.path.basename(p))
+
+    data_path = _res(app_config_obj.data_path)
+    wallet_path = _res(app_config_obj.wallet_path)
+    rc_path = _res(app_config_obj.reward_config_path)
+
+    _, s_st  = _ls(data_path)
+    _, w_st  = _lw(wallet_path)
+    _, rc_st = _lr(rc_path)
+
+    return jsonify({"files": [
+        {"name": "App-Konfiguration",       "path": Config.APP_CONFIG_PATH, "status": ac_st.value},
+        {"name": "Noten",                   "path": data_path,              "status": s_st.value},
+        {"name": "Wallet",                  "path": wallet_path,            "status": w_st.value},
+        {"name": "Belohnungskonfiguration", "path": rc_path,                "status": rc_st.value},
+    ]})
+
+
+
+# ---------------------------------------------------------------------------
+# API – Reset actions
+# ---------------------------------------------------------------------------
+
+@app.route("/api/reset", methods=["POST"])
+def reset_data():
+    """
+    Reset specific data. Body: { "action": str }
+    Actions: "grade_log" | "redemptions" | "balance" | "app_config" | "reward_config"
+    """
+    data   = request.get_json(force=True)
+    action = data.get("action", "")
+    app_config, subjects, wallet, reward_config = _load_all()
+
+    if action == "grade_log":
+        wallet.grade_log = []
+    elif action == "redemptions":
+        wallet.redemptions = []
+    elif action == "balance":
+        wallet.balance = 0.0
+    elif action == "app_config":
+        app_config = AppConfig(
+            data_path=app_config.data_path,
+            wallet_path=app_config.wallet_path,
+            reward_config_path=app_config.reward_config_path,
+            backup_path=app_config.backup_path,
+        )
+    elif action == "reward_config":
+        reward_config = RewardConfig()
+    else:
+        abort(400, f"Unknown action: {action}")
+
+    _save_all(app_config, subjects, wallet, reward_config)
+    return jsonify({"ok": True, "action": action})
+
+
+# ---------------------------------------------------------------------------
+# API – App config update
+# ---------------------------------------------------------------------------
+
+@app.route("/api/app-config", methods=["PATCH"])
+def update_app_config():
+    """Partial update of app config. Currently supports: verbose_loading (bool)."""
+    data = request.get_json(force=True)
+    app_config, subjects, wallet, reward_config = _load_all()
+
+    if "verbose_loading" in data:
+        app_config.verbose_loading = bool(data["verbose_loading"])
+
+    _save_all(app_config, subjects, wallet, reward_config)
+    return jsonify(app_config.to_dict())
+
+
+
+@app.route("/api/backups/cleanup", methods=["POST"])
+def cleanup_backups():
+    """Delete all backup directories except the newest one."""
+    import shutil
+    app_config, _, _, _ = _load_all()
+    backup_path = app_config.backup_path
+
+    if not os.path.exists(backup_path):
+        return jsonify({"message": "Kein Backup-Verzeichnis gefunden.", "deleted": 0})
+
+    entries = sorted(
+        [e for e in os.scandir(backup_path) if e.is_dir() and e.name.startswith("backup_")],
+        key=lambda e: e.name
+    )
+
+    if len(entries) <= 1:
+        return jsonify({"message": "Nur ein Backup vorhanden, nichts zu löschen.", "deleted": 0})
+
+    to_delete = entries[:-1]  # keep the newest
+    failed, deleted = [], 0
+    for e in to_delete:
+        try:
+            shutil.rmtree(e.path)
+            deleted += 1
+        except OSError:
+            failed.append(e.name)
+
+    msg = f"{deleted} altes Backup/Backups gelöscht."
+    if failed:
+        msg += f" Fehlgeschlagen: {', '.join(failed)}"
+    return jsonify({"message": msg, "deleted": deleted, "failed": failed})
+
+
+
 if __name__ == "__main__":
     app.run(host=Config.HOST, port=Config.PORT, debug=Config.DEBUG)

@@ -6,10 +6,10 @@
 // Page registry
 // ---------------------------------------------------------------------------
 const PAGES = {
-  overview: { title: "Übersicht",     loader: () => import("/static/js/pages/overview.js") },
-  wallet:   { title: "Konto",         loader: () => import("/static/js/pages/wallet.js")   },
-  stats:    { title: "Statistiken",   loader: () => import("/static/js/pages/stats.js")    },
-  settings: { title: "Einstellungen", loader: () => import("/static/js/pages/settings.js") },
+  overview: { title: "Übersicht",      loader: () => import("/static/js/pages/overview.js") },
+  wallet:   { title: "Konto & Verlauf", loader: () => import("/static/js/pages/wallet.js")   },
+  stats:    { title: "Statistiken",    loader: () => import("/static/js/pages/stats.js")    },
+  settings: { title: "Einstellungen",  loader: () => import("/static/js/pages/settings.js") },
 };
 const DEFAULT_PAGE = "overview";
 
@@ -72,7 +72,7 @@ async function renderPage(key) {
 function updateActiveNav(key) {
   allNavItems.forEach(item => {
     const active = item.dataset.page === key;
-    item.classList.toggle("nav-item--active",        active && !!item.closest(".nav-drawer"));
+    item.classList.toggle("nav-item--active",         active && !!item.closest(".nav-drawer"));
     item.classList.toggle("bottom-nav__item--active", active && !!item.closest(".bottom-nav"));
   });
 }
@@ -92,7 +92,6 @@ function closeDrawer() {
 drawerBackdrop?.addEventListener("click", closeDrawer);
 document.addEventListener("keydown", e => { if (e.key === "Escape") closeDrawer(); });
 
-// Nav clicks (both drawer + bottom bar)
 allNavItems.forEach(item => {
   item.addEventListener("click", e => {
     e.preventDefault();
@@ -108,13 +107,6 @@ window.addEventListener("popstate", () => renderPage(currentPageKey()));
 // ---------------------------------------------------------------------------
 let _fabCallback = null;
 
-/**
- * Set the primary action for the current page.
- * Updates both the desktop extended FAB (nav drawer) and the mobile floating FAB.
- * @param {string} icon   Material Symbol name, e.g. "add"
- * @param {string} label  Text for desktop extended FAB
- * @param {() => void} callback  Called when either FAB is clicked
- */
 export function setPrimaryAction(icon, label, callback) {
   _fabCallback = callback;
 
@@ -126,13 +118,13 @@ export function setPrimaryAction(icon, label, callback) {
   if (labelEl) labelEl.textContent = label;
   if (mobIcon) mobIcon.textContent = icon;
 
-  navFab?.removeAttribute("hidden");
+  if (navFab) { navFab.removeAttribute("hidden"); }
   mobFab?.removeAttribute("hidden");
 }
 
 export function clearPrimaryAction() {
   _fabCallback = null;
-  navFab?.setAttribute("hidden", "");
+  if (navFab) { navFab.setAttribute("hidden", ""); }
   mobFab?.setAttribute("hidden", "");
 }
 
@@ -155,6 +147,80 @@ export async function apiFetch(url, options = {}) {
 }
 
 // ---------------------------------------------------------------------------
+// Startup status check
+// ---------------------------------------------------------------------------
+async function checkStartupStatus() {
+  let status, appCfg;
+  try {
+    [status, appCfg] = await Promise.all([
+      apiFetch("/api/startup-status"),
+      apiFetch("/api/app-config"),
+    ]);
+  } catch { return; }
+
+  const ok      = status.files.filter(f => f.status === "ok");
+  const missing = status.files.filter(f => f.status === "missing");
+  const corrupt = status.files.filter(f => f.status === "corrupt");
+
+  if (appCfg.verbose_loading && ok.length) {
+    setTimeout(() => {
+      showSnackbar(ok.map(f => f.name).join(", ") + " geladen.");
+    }, 600);
+  }
+
+  if (missing.length || corrupt.length) {
+    _showLoadErrorDialog(missing, corrupt);
+  }
+}
+
+function _showLoadErrorDialog(missing, corrupt) {
+  document.getElementById("load-error-dialog")?.remove();
+  const wrap = document.createElement("div");
+  wrap.id = "load-error-dialog";
+
+  function fileRow(f) {
+    return '<div style="margin-bottom:8px">' +
+      '<div style="font-size:13px;margin-bottom:4px">' + f.name + '</div>' +
+      '<code style="display:block;padding:8px 10px;border-radius:6px;font-size:12px;' +
+      'background:var(--md-sys-color-surface-container-high);word-break:break-all">' +
+      f.path + '</code></div>';
+  }
+
+  const missingRows = missing.map(fileRow).join("");
+  const corruptRows = corrupt.map(fileRow).join("");
+
+  const missingSection = missing.length
+    ? '<p style="font-size:14px;font-weight:600;margin-bottom:8px">Datei nicht gefunden:</p>' + missingRows
+    : "";
+  const corruptSection = corrupt.length
+    ? '<p style="font-size:14px;font-weight:600;margin-top:8px;margin-bottom:8px">Datei beschädigt:</p>' + corruptRows
+    : "";
+
+  wrap.innerHTML =
+    '<div style="position:fixed;inset:0;background:rgba(0,0,0,.45);z-index:2000;' +
+    'display:flex;align-items:center;justify-content:center;padding:24px">' +
+      '<div style="background:var(--md-sys-color-surface-container-high);border-radius:28px;' +
+      'max-width:520px;width:100%;box-shadow:0 8px 24px rgba(0,0,0,.18);overflow:hidden">' +
+        '<div style="padding:24px 24px 0;font-size:22px;font-weight:500;' +
+        'color:var(--md-sys-color-error)">\u26A0 Ladefehler</div>' +
+        '<div style="padding:16px 24px;max-height:60vh;overflow-y:auto">' +
+          missingSection + corruptSection +
+          '<p style="font-size:13px;color:var(--md-sys-color-on-surface-variant);margin-top:12px">' +
+          'Beim Fortfahren werden Standardwerte geladen.</p>' +
+        '</div>' +
+        '<div style="padding:12px 24px 20px;display:flex;justify-content:flex-end">' +
+          '<button id="loadErrOk" style="padding:10px 24px;border-radius:50px;border:none;' +
+          'background:var(--md-sys-color-primary);color:var(--md-sys-color-on-primary);' +
+          'font-size:14px;font-weight:500;font-family:inherit;cursor:pointer">Fortfahren</button>' +
+        '</div>' +
+      '</div>' +
+    '</div>';
+
+  document.body.appendChild(wrap);
+  wrap.querySelector("#loadErrOk").addEventListener("click", () => wrap.remove());
+}
+
+// ---------------------------------------------------------------------------
 // Snackbar
 // ---------------------------------------------------------------------------
 let _snackbarTimer = null;
@@ -165,18 +231,19 @@ export function showSnackbar(message, type = "info") {
     bar = document.createElement("div");
     bar.id = "snackbar";
     Object.assign(bar.style, {
-      position:   "fixed",
-      bottom:     "calc(var(--bottom-nav-height, 0px) + 16px)",
-      left:       "50%",
-      transform:  "translateX(-50%) translateY(80px)",
-      padding:    "12px 20px",
-      borderRadius: "var(--shape-corner-small)",
-      fontSize:   "14px",
-      maxWidth:   "90vw",
-      textAlign:  "center",
-      boxShadow:  "var(--elevation-2)",
-      zIndex:     "9999",
-      transition: "transform .25s cubic-bezier(0.2,0,0,1)",
+      position:      "fixed",
+      bottom:        "calc(var(--bottom-nav-height, 0px) + 16px)",
+      left:          "50%",
+      transform:     "translateX(-50%)",
+      padding:       "12px 20px",
+      borderRadius:  "var(--shape-corner-small)",
+      fontSize:      "14px",
+      maxWidth:      "90vw",
+      textAlign:     "center",
+      boxShadow:     "var(--elevation-2)",
+      zIndex:        "9999",
+      opacity:       "0",
+      transition:    "opacity .2s ease",
       pointerEvents: "none",
     });
     document.body.appendChild(bar);
@@ -187,17 +254,10 @@ export function showSnackbar(message, type = "info") {
   bar.style.color = type === "error"
     ? "var(--md-sys-color-on-error)" : "var(--md-sys-color-surface)";
   bar.textContent = message;
+  bar.style.opacity = "1";
 
-  // Slide in
-  requestAnimationFrame(() => {
-    bar.style.transform = "translateX(-50%) translateY(0)";
-  });
-
-  // Auto-hide after 3.5 s
   clearTimeout(_snackbarTimer);
-  _snackbarTimer = setTimeout(() => {
-    bar.style.transform = "translateX(-50%) translateY(80px)";
-  }, 3500);
+  _snackbarTimer = setTimeout(() => { bar.style.opacity = "0"; }, 3500);
 }
 
 // ---------------------------------------------------------------------------
@@ -217,10 +277,12 @@ function applyTheme(pref) {
   const isDark  = pref === "dark" || (pref === "system" && sysDark);
 
   const icon  = isDark ? "light_mode" : "dark_mode";
-  const label = isDark ? "Light Mode" : "Dark Mode";
+  const label = isDark ? "Light Mode"  : "Dark Mode";
 
-  const els = ["themeIcon", "themeIconMobile"].map(id => document.getElementById(id));
-  els.forEach(el => { if (el) el.textContent = icon; });
+  ["themeIcon", "themeIconMobile"].forEach(id => {
+    const el = document.getElementById(id);
+    if (el) el.textContent = icon;
+  });
   const labelEl = document.getElementById("themeLabel");
   if (labelEl) labelEl.textContent = label;
 }
@@ -237,7 +299,6 @@ function toggleTheme() {
 document.getElementById("themeToggle")?.addEventListener("click", toggleTheme);
 document.getElementById("themeToggleMobile")?.addEventListener("click", toggleTheme);
 
-// Apply saved pref on load + react to system changes
 applyTheme(getThemePref());
 window.matchMedia("(prefers-color-scheme: dark)")
   .addEventListener("change", () => {
@@ -265,3 +326,4 @@ export function skeletonGrid(n = 3, lineClasses) {
 // Boot
 // ---------------------------------------------------------------------------
 renderPage(currentPageKey());
+checkStartupStatus();

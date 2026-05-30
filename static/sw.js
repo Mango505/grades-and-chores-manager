@@ -4,8 +4,8 @@
  * Cache-first for static assets (CSS, JS, fonts).
  * Network-first for API routes (always fresh data, fallback to cache).
  */
-const SHELL_CACHE = "nr-shell-v1";
-const API_CACHE   = "nr-api-v1";
+const SHELL_CACHE = "nr-shell-v3";
+const API_CACHE   = "nr-api-v3";
 
 const SHELL_ASSETS = [
   "/",
