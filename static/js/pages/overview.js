@@ -1,15 +1,18 @@
 /**
  * overview.js
- * Grid view:  toolbar → stats → cards (click to detail)
- * Detail view: back + rename/delete + stats + grade table
- * Label filter: flat list of matching grade rows across all subjects
+ * Grid: chip filter → stats → subject cards
+ * Detail: back + rename/delete + stats + grade table
+ * Mobile: Fach/Reihenfolge in ⋮ overflow menu in top-app-bar
  */
 import { apiFetch, showSnackbar, skeletonGrid, setPrimaryAction, clearPrimaryAction } from "../app.js";
 import { gradeBadge, emptyState, errorBanner, statChip, openDialog,
          injectComponentStyles, validateAll, validators } from "../components.js";
 
-let reorderMode   = false;
-let detailSubject = null;
+let reorderMode     = false;
+let detailSubject   = null;
+let filterLabels    = [];
+let filterMode      = "or";
+let _cachedSubjects = [];
 
 export default async function render(container) {
   injectComponentStyles();
@@ -32,53 +35,74 @@ async function renderGrid(container) {
     ]);
   } catch(e) { container.innerHTML = errorBanner(e.message); return; }
 
+  _cachedSubjects = subjects;
   const avg  = overview.overall_average;
   const tot  = subjects.reduce((n, s) => n + s.grades.length, 0);
   const best = [...overview.subjects].sort((a, b) => a.average - b.average)[0];
 
-  if (subjects.length) {
-    setPrimaryAction("add", "Note hinzufügen", () => openAddNoteDialog(container, subjects));
-  } else {
-    clearPrimaryAction();
-  }
+  if (subjects.length) setPrimaryAction("add", "Note hinzuf\u00fcgen", () => openAddNoteDialog(container, subjects));
+  else clearPrimaryAction();
 
-  container.innerHTML = `
-    <!-- Toolbar -->
-    <div class="ov-toolbar">
-      <div class="ov-toolbar-left">
-        <md-outlined-text-field id="filterInput" label="Nach Label filtern"
-            style="flex:1;min-width:160px" placeholder="z.B. Schulaufgabe">
-        </md-outlined-text-field>
-        <md-text-button id="filterClear" style="display:none">Zurücksetzen</md-text-button>
-      </div>
-      <div class="ov-toolbar-right">
-        <md-filled-tonal-button id="btnNewSubject">
-          <span class="material-symbols-rounded" slot="icon">add</span>Fach
-        </md-filled-tonal-button>
-        <md-filled-tonal-button id="btnReorder">
-          <span class="material-symbols-rounded" slot="icon">${reorderMode ? "check" : "swap_vert"}</span>
-          ${reorderMode ? "Fertig" : "Reihenfolge"}
-        </md-filled-tonal-button>
-      </div>
-    </div>
+  _injectOverflowBtn(container, subjects);
 
-    <!-- Stats banner -->
-    <div class="card stat-banner-grid" style="margin-bottom:16px">
-      ${statChip("Gesamtschnitt", avg != null ? avg.toFixed(2) : "—")}
-      ${statChip("Noten gesamt",  tot, "--md-sys-color-secondary")}
-      ${statChip("Bestes Fach",   best ? best.name + " (" + best.average.toFixed(2) + ")" : "—",
-                 "--md-sys-color-tertiary")}
-    </div>
+  const chipsHtml   = _renderChipsHtml();
+  const modeRowHtml = _renderModeRowHtml();
 
-    <div id="filterInfo" style="display:none;margin-bottom:10px;font-size:13px;
-         color:var(--md-sys-color-on-surface-variant)"></div>
-    <div id="subjectGrid">${renderGridContent(subjects)}</div>`;
+  container.innerHTML =
+    '<div class="ov-toolbar">' +
+      '<div class="ov-toolbar-left">' +
+        '<div class="chip-input" id="chipInput">' +
+          chipsHtml +
+          '<input id="labelInput" class="chip-text-input" placeholder="' +
+          (filterLabels.length ? 'Label hinzuf\u00fcgen\u2026' : 'Nach Label filtern\u2026') + '"/>' +
+        '</div>' +
+        '<div id="filterModeRow" class="filter-mode-row" style="' + (filterLabels.length ? '' : 'display:none') + '">' +
+          modeRowHtml +
+        '</div>' +
+      '</div>' +
+      // .btn-tonal native buttons: reliable padding/margin, no shadow-DOM surprises
+      '<div class="ov-toolbar-right">' +
+        '<button class="btn-tonal" id="btnNewSubject">' +
+          '<span class="material-symbols-rounded">add</span>Fach' +
+        '</button>' +
+        '<button class="btn-tonal" id="btnReorder">' +
+          '<span class="material-symbols-rounded">' + (reorderMode ? "check" : "swap_vert") + '</span>' +
+          (reorderMode ? "Fertig" : "Reihenfolge") +
+        '</button>' +
+      '</div>' +
+    '</div>' +
+
+    '<div class="card stat-banner-grid" style="margin-bottom:16px">' +
+      statChip("Gesamtschnitt", avg != null ? avg.toFixed(2) : "\u2014") +
+      statChip("Noten gesamt",  tot, "--md-sys-color-secondary") +
+      statChip("Bestes Fach",   best ? best.name + " (" + best.average.toFixed(2) + ")" : "\u2014", "--md-sys-color-tertiary") +
+    '</div>' +
+
+    '<div id="filterInfo" style="display:none;margin-bottom:10px;font-size:13px;color:var(--md-sys-color-on-surface-variant)"></div>' +
+    '<div id="subjectGrid">' + renderGridContent(subjects) + '</div>';
 
   bindGridEvents(container, subjects);
+  if (filterLabels.length) _applyFilter(container, subjects);
+}
+
+function _renderChipsHtml() {
+  return filterLabels.map((l, i) =>
+    '<span class="filter-chip">' + l +
+    '<button class="chip-x" data-i="' + i + '" type="button">\u00d7</button></span>'
+  ).join("");
+}
+
+function _renderModeRowHtml() {
+  if (!filterLabels.length) return "";
+  const clearBtn = '<button class="filter-clear-btn" id="filterClear">\u00d7 Zur\u00fccksetzen</button>';
+  if (filterLabels.length === 1) return clearBtn;
+  return clearBtn +
+    '<label><input type="radio" name="filterMode" value="or"  ' + (filterMode === "or"  ? "checked" : "") + '/> Eines (OR)</label>' +
+    '<label><input type="radio" name="filterMode" value="and" ' + (filterMode === "and" ? "checked" : "") + '/> Alle (AND)</label>';
 }
 
 function renderGridContent(subjects) {
-  if (!subjects.length) return emptyState("library_books", "Noch keine Fächer vorhanden.");
+  if (!subjects.length) return emptyState("library_books", "Noch keine F\u00e4cher vorhanden.");
   if (reorderMode)      return reorderList(subjects);
   return subjects.map(subjectCard).join("");
 }
@@ -86,21 +110,20 @@ function renderGridContent(subjects) {
 function subjectCard(s) {
   const w   = s.grades.reduce((a, g) => a + g.weight, 0);
   const avg = w ? (s.grades.reduce((a, g) => a + g.value * g.weight, 0) / w).toFixed(2) : null;
-  return `<div class="ov-card card" data-subject="${s.name}">
-    <div style="display:flex;justify-content:space-between;align-items:center">
-      <div>
-        <div style="font-size:16px;font-weight:600">${s.name}</div>
-        <div style="font-size:13px;color:var(--md-sys-color-on-surface-variant);margin-top:2px">
-          ${avg ? "Ø " + avg : "Keine Noten"} · ${s.grades.length} Einträge
-        </div>
-      </div>
-      <div style="display:flex;align-items:center;gap:8px">
-        ${sparkline(s.grades)}
-        <span class="material-symbols-rounded"
-              style="color:var(--md-sys-color-on-surface-variant);font-size:20px">chevron_right</span>
-      </div>
-    </div>
-  </div>`;
+  return '<div class="ov-card card" data-subject="' + s.name + '">' +
+    '<div style="display:flex;justify-content:space-between;align-items:center">' +
+      '<div>' +
+        '<div style="font-size:16px;font-weight:600">' + s.name + '</div>' +
+        '<div style="font-size:13px;color:var(--md-sys-color-on-surface-variant);margin-top:2px">' +
+          (avg ? '\u00d8 ' + avg : 'Keine Noten') + ' \u00b7 ' + s.grades.length + ' Eintr\u00e4ge' +
+        '</div>' +
+      '</div>' +
+      '<div style="display:flex;align-items:center;gap:8px">' +
+        sparkline(s.grades) +
+        '<span class="material-symbols-rounded" style="color:var(--md-sys-color-on-surface-variant);font-size:20px">chevron_right</span>' +
+      '</div>' +
+    '</div>' +
+  '</div>';
 }
 
 function sparkline(grades) {
@@ -108,173 +131,194 @@ function sparkline(grades) {
   const W = 100, H = 32, P = 3;
   const step = (W - P * 2) / (grades.length - 1);
   const y    = v => P + ((v - 1) / 5) * (H - P * 2);
-  const pts  = grades.map((g, i) => `${P + i * step},${y(g.value)}`).join(" ");
+  const pts  = grades.map((g, i) => (P + i * step) + "," + y(g.value)).join(" ");
   const avg  = grades.reduce((a, g) => a + g.value, 0) / grades.length;
   const stroke = avg <= 2.5 ? "#1b7e4a" : avg <= 4 ? "#a08c00" : "#c43000";
-  return `<svg width="${W}" height="${H}" style="flex-shrink:0;opacity:.8" aria-hidden="true">
-    <polyline points="${pts}" fill="none" stroke="${stroke}"
-              stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/>
-    <circle cx="${P + (grades.length - 1) * step}" cy="${y(grades.at(-1).value)}" r="3" fill="${stroke}"/>
-  </svg>`;
+  return '<svg width="' + W + '" height="' + H + '" style="flex-shrink:0;opacity:.8" aria-hidden="true">' +
+    '<polyline points="' + pts + '" fill="none" stroke="' + stroke + '" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/>' +
+    '<circle cx="' + (P + (grades.length - 1) * step) + '" cy="' + y(grades.at(-1).value) + '" r="3" fill="' + stroke + '"/>' +
+  '</svg>';
 }
 
 function reorderList(subjects) {
-  return `<div style="display:flex;flex-direction:column;gap:8px">
-    ${subjects.map((s, i) => `
-      <div class="card" style="display:flex;align-items:center;padding:14px 16px;gap:8px">
-        <span style="flex:1;font-size:15px;font-weight:500">${s.name}</span>
-        <button class="icon-btn-sm btn-up"   data-index="${i}" ${i === 0 ? "disabled" : ""}>
-          <span class="material-symbols-rounded">arrow_upward</span>
-        </button>
-        <button class="icon-btn-sm btn-down" data-index="${i}" ${i === subjects.length - 1 ? "disabled" : ""}>
-          <span class="material-symbols-rounded">arrow_downward</span>
-        </button>
-      </div>`).join("")}
-  </div>`;
+  return '<div style="display:flex;flex-direction:column;gap:8px">' +
+    subjects.map((s, i) =>
+      '<div class="card" style="display:flex;align-items:center;padding:14px 16px;gap:8px">' +
+        '<span style="flex:1;font-size:15px;font-weight:500">' + s.name + '</span>' +
+        '<button class="icon-btn-sm btn-up"   data-index="' + i + '" ' + (i === 0 ? "disabled" : "") + '><span class="material-symbols-rounded">arrow_upward</span></button>' +
+        '<button class="icon-btn-sm btn-down" data-index="' + i + '" ' + (i === subjects.length - 1 ? "disabled" : "") + '><span class="material-symbols-rounded">arrow_downward</span></button>' +
+      '</div>'
+    ).join("") +
+  '</div>';
 }
 
 // ---------------------------------------------------------------------------
-// Label filter
+// Mobile overflow menu
 // ---------------------------------------------------------------------------
-function renderFilterResults(subjects, term) {
-  const matches = [];
-  subjects.forEach(s => {
-    s.grades.forEach(g => {
-      if (g.labels.some(l => l.toLowerCase().includes(term))) {
-        matches.push({ subject: s.name, grade: g });
-      }
+function _injectOverflowBtn(container, subjects) {
+  _removeOverflowBtn();
+  const actions = document.querySelector(".top-app-bar__actions");
+  if (!actions) return;
+  const btn = document.createElement("button");
+  btn.id = "ov-overflow-btn"; btn.className = "icon-btn"; btn.setAttribute("aria-label", "Mehr Optionen");
+  btn.innerHTML = '<span class="material-symbols-rounded">more_vert</span>';
+  actions.insertBefore(btn, actions.firstChild);
+  const menu = document.createElement("div");
+  menu.id = "ov-overflow-menu"; menu.className = "ov-overflow-menu"; menu.style.display = "none";
+  menu.innerHTML =
+    '<button id="ovMenuNew"><span class="material-symbols-rounded">add</span>Fach erstellen</button>' +
+    '<button id="ovMenuReorder"><span class="material-symbols-rounded">swap_vert</span>' +
+    (reorderMode ? "Fertig" : "Reihenfolge \u00e4ndern") + '</button>';
+  document.body.appendChild(menu);
+  btn.addEventListener("click", e => {
+    e.stopPropagation();
+    const open = menu.style.display === "block";
+    menu.style.display = open ? "none" : "block";
+    if (!open) setTimeout(() => {
+      document.addEventListener("click", function _c() { menu.style.display = "none"; document.removeEventListener("click", _c); });
+    }, 0);
+  });
+  menu.querySelector("#ovMenuNew").addEventListener("click", () => {
+    menu.style.display = "none";
+    const dlg = openDialog("Fach erstellen",
+      '<md-outlined-text-field id="dlgName" label="Fachname" style="width:100%"></md-outlined-text-field>');
+    dlg.addEventListener("close", async () => {
+      if (dlg.returnValue !== "confirm") return;
+      const name = dlg.querySelector("#dlgName").value.trim(); if (!name) return;
+      try { await apiFetch("/api/subjects", { method: "POST", body: JSON.stringify({ name }) }); showSnackbar("Fach '" + name + "' erstellt."); reorderMode = false; await renderGrid(container); }
+      catch(e) { showSnackbar(e.message, "error"); }
     });
   });
-  if (!matches.length) return emptyState("search_off", "Keine Noten mit Label '" + term + "'.");
-
-  const rows = matches.map(({ subject, grade }) => `
-    <tr>
-      <td style="padding:8px 10px;border-bottom:1px solid var(--md-sys-color-outline-variant);font-size:14px">${subject}</td>
-      <td style="padding:8px 10px;border-bottom:1px solid var(--md-sys-color-outline-variant)">${gradeBadge(grade.value)}</td>
-      <td style="padding:8px 10px;border-bottom:1px solid var(--md-sys-color-outline-variant);font-size:13px;color:var(--md-sys-color-on-surface-variant)">${grade.weight}×</td>
-      <td style="padding:8px 10px;border-bottom:1px solid var(--md-sys-color-outline-variant);font-size:13px;color:var(--md-sys-color-on-surface-variant)">${grade.labels.join(", ")}</td>
-    </tr>`).join("");
-
-  return `<div class="card" style="padding:0;overflow:hidden">
-    <table style="width:100%;border-collapse:collapse">
-      <thead><tr>
-        ${["Fach", "Note", "Gew.", "Labels"].map(h =>
-          `<th style="text-align:left;padding:8px 10px;font-size:12px;
-            color:var(--md-sys-color-on-surface-variant);
-            border-bottom:1px solid var(--md-sys-color-outline-variant)">${h}</th>`
-        ).join("")}
-      </tr></thead>
-      <tbody>${rows}</tbody>
-    </table>
-  </div>`;
+  menu.querySelector("#ovMenuReorder").addEventListener("click", () => {
+    menu.style.display = "none"; reorderMode = !reorderMode;
+    const grid = container.querySelector("#subjectGrid");
+    if (grid) grid.innerHTML = renderGridContent(subjects);
+    const m = document.querySelector("#ovMenuReorder");
+    if (m) m.innerHTML = '<span class="material-symbols-rounded">swap_vert</span>' + (reorderMode ? "Fertig" : "Reihenfolge \u00e4ndern");
+  });
+}
+function _removeOverflowBtn() {
+  document.getElementById("ov-overflow-btn")?.remove();
+  document.getElementById("ov-overflow-menu")?.remove();
 }
 
 // ---------------------------------------------------------------------------
-// Grid event binding
+// Chip filter
+// ---------------------------------------------------------------------------
+function _addChip(label, container, subjects) {
+  label = label.trim();
+  if (!label || filterLabels.includes(label)) return;
+  filterLabels.push(label); _rebuildFilter(container, subjects);
+}
+function _removeChip(index, container, subjects) {
+  filterLabels.splice(index, 1); _rebuildFilter(container, subjects);
+}
+function _rebuildFilter(container, subjects) {
+  const chipInput = container.querySelector("#chipInput");
+  const input     = container.querySelector("#labelInput");
+  const modeRow   = container.querySelector("#filterModeRow");
+  if (!chipInput || !input) return;
+  chipInput.querySelectorAll(".filter-chip").forEach(c => c.remove());
+  filterLabels.forEach((l, i) => {
+    const chip = document.createElement("span"); chip.className = "filter-chip";
+    chip.innerHTML = l + '<button class="chip-x" data-i="' + i + '" type="button">\u00d7</button>';
+    chipInput.insertBefore(chip, input);
+  });
+  input.placeholder = filterLabels.length ? "Label hinzuf\u00fcgen\u2026" : "Nach Label filtern\u2026";
+  if (modeRow) {
+    if (!filterLabels.length) { modeRow.style.display = "none"; modeRow.innerHTML = ""; }
+    else {
+      modeRow.className = "filter-mode-row"; modeRow.style.display = "flex";
+      modeRow.innerHTML = _renderModeRowHtml();
+      modeRow.querySelector("#filterClear")?.addEventListener("click", () => { filterLabels = []; _rebuildFilter(container, subjects); });
+      modeRow.querySelectorAll("input[type=radio]").forEach(r => r.addEventListener("change", () => { filterMode = r.value; _applyFilter(container, subjects); }));
+    }
+  }
+  _applyFilter(container, subjects);
+}
+function _applyFilter(container, subjects) {
+  const grid = container.querySelector("#subjectGrid"), infoEl = container.querySelector("#filterInfo");
+  if (!grid) return;
+  if (!filterLabels.length) { if (infoEl) infoEl.style.display = "none"; grid.innerHTML = renderGridContent(subjects); return; }
+  const matches = [];
+  subjects.forEach(s => { s.grades.forEach(g => {
+    const hit = filterMode === "and"
+      ? filterLabels.every(l => g.labels.some(gl => gl.toLowerCase().includes(l.toLowerCase())))
+      : filterLabels.some(l  => g.labels.some(gl => gl.toLowerCase().includes(l.toLowerCase())));
+    if (hit) matches.push({ subject: s.name, grade: g });
+  }); });
+  if (infoEl) { infoEl.style.display = ""; infoEl.textContent = matches.length + " Eintr\u00e4ge \u2014 " + filterLabels.join(filterMode === "and" ? " + " : " | "); }
+  if (!matches.length) { grid.innerHTML = emptyState("search_off", "Keine Noten mit diesen Labels."); return; }
+  const rows = matches.map(({ subject, grade }) =>
+    '<tr>' +
+      '<td style="padding:8px 10px;border-bottom:1px solid var(--md-sys-color-outline-variant);font-size:14px">' + subject + '</td>' +
+      '<td style="padding:8px 10px;border-bottom:1px solid var(--md-sys-color-outline-variant)">' + gradeBadge(grade.value) + '</td>' +
+      '<td style="padding:8px 10px;border-bottom:1px solid var(--md-sys-color-outline-variant);font-size:13px;color:var(--md-sys-color-on-surface-variant)">' + grade.weight + '\u00d7</td>' +
+      '<td style="padding:8px 10px;border-bottom:1px solid var(--md-sys-color-outline-variant);font-size:13px;color:var(--md-sys-color-on-surface-variant)">' + grade.labels.join(", ") + '</td>' +
+    '</tr>'
+  ).join("");
+  grid.innerHTML = '<div class="card" style="padding:0;overflow:hidden"><table style="width:100%;border-collapse:collapse">' +
+    '<thead><tr>' + ['Fach','Note','Gew.','Labels'].map(h => '<th style="text-align:left;padding:8px 10px;font-size:12px;color:var(--md-sys-color-on-surface-variant);border-bottom:1px solid var(--md-sys-color-outline-variant)">' + h + '</th>').join("") + '</tr></thead>' +
+    '<tbody>' + rows + '</tbody></table></div>';
+}
+
+// ---------------------------------------------------------------------------
+// Grid events
 // ---------------------------------------------------------------------------
 function bindGridEvents(container, subjects) {
-  const grid        = container.querySelector("#subjectGrid");
-  const filterInput = container.querySelector("#filterInput");
-  const filterClear = container.querySelector("#filterClear");
-  const filterInfo  = container.querySelector("#filterInfo");
-
-  // Card click → detail
+  const grid = container.querySelector("#subjectGrid");
   grid.addEventListener("click", e => {
-    const card  = e.target.closest(".ov-card");
-    const arrow = e.target.closest(".btn-up,.btn-down");
-    if (card && !arrow && !reorderMode) {
-      detailSubject = card.dataset.subject;
-      renderDetail(container);
-    }
+    if (reorderMode) return;
+    const card = e.target.closest(".ov-card");
+    if (card && !e.target.closest(".btn-up,.btn-down")) { detailSubject = card.dataset.subject; _removeOverflowBtn(); renderDetail(container); }
   });
-
-  // Reorder arrows
   grid.addEventListener("click", async e => {
-    const btn = e.target.closest(".btn-up,.btn-down");
-    if (!btn) return;
-    const i = parseInt(btn.dataset.index);
-    const j = btn.classList.contains("btn-up") ? i - 1 : i + 1;
+    const btn = e.target.closest(".btn-up,.btn-down"); if (!btn) return;
+    const i = parseInt(btn.dataset.index), j = btn.classList.contains("btn-up") ? i - 1 : i + 1;
     if (j < 0 || j >= subjects.length) return;
     [subjects[i], subjects[j]] = [subjects[j], subjects[i]];
     grid.innerHTML = reorderList(subjects);
-    try {
-      await apiFetch("/api/subjects/reorder",
-        { method: "PUT", body: JSON.stringify({ order: subjects.map(s => s.name) }) });
-    } catch(err) { showSnackbar(err.message, "error"); }
+    try { await apiFetch("/api/subjects/reorder", { method: "PUT", body: JSON.stringify({ order: subjects.map(s => s.name) }) }); }
+    catch(err) { showSnackbar(err.message, "error"); }
   });
-
-  // Filter
-  function applyFilter() {
-    const term = filterInput.value.trim().toLowerCase();
-    filterClear.style.display = term ? "" : "none";
-    if (!term) {
-      filterInfo.style.display = "none";
-      grid.innerHTML = renderGridContent(subjects);
-      return;
-    }
-    const matches = subjects.flatMap(s =>
-      s.grades.filter(g => g.labels.some(l => l.toLowerCase().includes(term)))
-    );
-    filterInfo.style.display = "";
-    filterInfo.textContent = matches.length + " Eintrag/Einträge mit Label '" + term + "'";
-    grid.innerHTML = renderFilterResults(subjects, term);
-  }
-  filterInput.addEventListener("input", applyFilter);
-  filterClear.addEventListener("click", () => { filterInput.value = ""; applyFilter(); });
-
-  // Reorder toggle
-  container.querySelector("#btnReorder").addEventListener("click", () => {
-    reorderMode = !reorderMode;
-    grid.innerHTML = renderGridContent(subjects);
+  const labelInput = container.querySelector("#labelInput"), chipInput = container.querySelector("#chipInput");
+  labelInput?.addEventListener("keydown", e => {
+    if (e.key === "Enter" || e.key === "," || e.key === "Tab") { e.preventDefault(); const val = labelInput.value.replace(/,/g,"").trim(); if (val) { _addChip(val, container, subjects); labelInput.value = ""; } }
+    if (e.key === "Backspace" && !labelInput.value && filterLabels.length) _removeChip(filterLabels.length - 1, container, subjects);
+  });
+  labelInput?.addEventListener("blur", () => { const val = labelInput.value.replace(/,/g,"").trim(); if (val) { _addChip(val, container, subjects); labelInput.value = ""; } });
+  chipInput?.addEventListener("click", e => { const btn = e.target.closest(".chip-x"); if (btn) _removeChip(parseInt(btn.dataset.i), container, subjects); else labelInput?.focus(); });
+  const modeRow = container.querySelector("#filterModeRow");
+  modeRow?.querySelector("#filterClear")?.addEventListener("click", () => { filterLabels = []; _rebuildFilter(container, subjects); });
+  modeRow?.querySelectorAll("input[type=radio]").forEach(r => r.addEventListener("change", () => { filterMode = r.value; _applyFilter(container, subjects); }));
+  container.querySelector("#btnReorder")?.addEventListener("click", () => {
+    reorderMode = !reorderMode; grid.innerHTML = renderGridContent(subjects);
     const btn = container.querySelector("#btnReorder");
-    btn.innerHTML =
-      '<span class="material-symbols-rounded" slot="icon">' + (reorderMode ? "check" : "swap_vert") + '</span>' +
-      (reorderMode ? "Fertig" : "Reihenfolge");
+    if (btn) btn.innerHTML = '<span class="material-symbols-rounded">' + (reorderMode ? "check" : "swap_vert") + '</span>' + (reorderMode ? "Fertig" : "Reihenfolge");
   });
-
-  // New subject
-  container.querySelector("#btnNewSubject").addEventListener("click", () => {
-    const dlg = openDialog("Fach erstellen",
-      `<md-outlined-text-field id="dlgName" label="Fachname" style="width:100%"></md-outlined-text-field>`);
+  container.querySelector("#btnNewSubject")?.addEventListener("click", () => {
+    const dlg = openDialog("Fach erstellen", '<md-outlined-text-field id="dlgName" label="Fachname" style="width:100%"></md-outlined-text-field>');
     dlg.addEventListener("close", async () => {
       if (dlg.returnValue !== "confirm") return;
-      const name = dlg.querySelector("#dlgName").value.trim();
-      if (!name) return;
-      try {
-        await apiFetch("/api/subjects", { method: "POST", body: JSON.stringify({ name }) });
-        showSnackbar("Fach '" + name + "' erstellt.");
-        reorderMode = false;
-        await renderGrid(container);
-      } catch(e) { showSnackbar(e.message, "error"); }
+      const name = dlg.querySelector("#dlgName").value.trim(); if (!name) return;
+      try { await apiFetch("/api/subjects", { method: "POST", body: JSON.stringify({ name }) }); showSnackbar("Fach '" + name + "' erstellt."); reorderMode = false; await renderGrid(container); }
+      catch(e) { showSnackbar(e.message, "error"); }
     });
   });
 }
 
 // ---------------------------------------------------------------------------
-// Add note from grid (subject selector first)
+// Add note from grid
 // ---------------------------------------------------------------------------
 async function openAddNoteDialog(container, subjects) {
-  const opts = subjects.map(s =>
-    `<option value="${s.name}">${s.name}</option>`).join("");
-
-  const dlg = openDialog("Fach auswählen",
-    `<div style="display:flex;flex-direction:column;gap:8px">
-       <label style="font-size:13px;color:var(--md-sys-color-on-surface-variant)">
-         Zu welchem Fach soll die Note hinzugefügt werden?
-       </label>
-       <select id="dlgSubject" style="padding:10px 12px;border-radius:var(--shape-corner-small);
-         border:1px solid var(--md-sys-color-outline);background:var(--md-sys-color-surface);
-         color:var(--md-sys-color-on-surface);font-size:14px;font-family:inherit">
-         ${opts}
-       </select>
-     </div>`, "Weiter");
-
+  const opts = subjects.map(s => '<option value="' + s.name + '">' + s.name + '</option>').join("");
+  const dlg = openDialog("Fach ausw\u00e4hlen",
+    '<div style="display:flex;flex-direction:column;gap:8px"><label style="font-size:13px;color:var(--md-sys-color-on-surface-variant)">Zu welchem Fach?</label>' +
+    '<select id="dlgSubject" style="padding:10px 12px;border-radius:var(--shape-corner-small);border:1px solid var(--md-sys-color-outline);background:var(--md-sys-color-surface);color:var(--md-sys-color-on-surface);font-size:14px;font-family:inherit">' + opts + '</select></div>', "Weiter");
   dlg.addEventListener("close", () => {
     if (dlg.returnValue !== "confirm") return;
-    const name    = dlg.querySelector("#dlgSubject").value;
-    const subject = subjects.find(s => s.name === name);
-    if (!subject) return;
-    openGradeDialog(container, subject, null, subjects);
+    const subject = subjects.find(s => s.name === dlg.querySelector("#dlgSubject").value);
+    if (subject) openGradeDialog(container, subject, null, subjects);
   });
 }
 
@@ -282,220 +326,104 @@ async function openAddNoteDialog(container, subjects) {
 // DETAIL VIEW
 // ---------------------------------------------------------------------------
 async function renderDetail(container) {
-  container.innerHTML = `
-    <div class="back-bar">
-      <button class="icon-btn" id="btnBack">
-        <span class="material-symbols-rounded">arrow_back</span>
-      </button>
-      <span class="back-bar__title">${detailSubject}</span>
-    </div>
-    ${skeletonGrid(2, ["title", "medium", "short"])}`;
-
-  container.querySelector("#btnBack").addEventListener("click", () => {
-    detailSubject = null;
-    clearPrimaryAction();
-    renderGrid(container);
-  });
-
+  container.innerHTML =
+    '<div class="back-bar"><button class="icon-btn" id="btnBack"><span class="material-symbols-rounded">arrow_back</span></button><span class="back-bar__title">' + detailSubject + '</span></div>' +
+    skeletonGrid(2, ["title", "medium", "short"]);
+  container.querySelector("#btnBack").addEventListener("click", () => { detailSubject = null; clearPrimaryAction(); renderGrid(container); });
   let subjects, rewardConfig;
-  try {
-    [subjects, rewardConfig] = await Promise.all([
-      apiFetch("/api/subjects"),
-      apiFetch("/api/reward-config"),
-    ]);
-  } catch(e) { container.innerHTML += errorBanner(e.message); return; }
-
+  try { [subjects, rewardConfig] = await Promise.all([apiFetch("/api/subjects"), apiFetch("/api/reward-config")]); }
+  catch(e) { container.innerHTML += errorBanner(e.message); return; }
   const subject = subjects.find(s => s.name === detailSubject);
-  if (!subject) {
-    showSnackbar("Fach nicht gefunden.", "error");
-    detailSubject = null; clearPrimaryAction();
-    return renderGrid(container);
-  }
-
-  setPrimaryAction("add", "Note hinzufügen",
-    () => openGradeDialog(container, subject, null, subjects, rewardConfig));
+  if (!subject) { showSnackbar("Fach nicht gefunden.", "error"); detailSubject = null; clearPrimaryAction(); return renderGrid(container); }
+  setPrimaryAction("add", "Note hinzuf\u00fcgen", () => openGradeDialog(container, subject, null, subjects, rewardConfig));
   drawDetail(container, subject, subjects, rewardConfig);
 }
 
 function drawDetail(container, subject, subjects, rewardConfig) {
-  const g   = subject.grades;
-  const w   = g.reduce((a, x) => a + x.weight, 0);
-  const avg = w ? g.reduce((a, x) => a + x.value * x.weight, 0) / w : null;
+  const g = subject.grades, w = g.reduce((a, x) => a + x.weight, 0), avg = w ? g.reduce((a, x) => a + x.value * x.weight, 0) / w : null;
+  const rows = g.length ? g.map((gr, i) =>
+    '<tr>' +
+      '<td style="padding:10px;border-bottom:1px solid var(--md-sys-color-outline-variant)">' + gradeBadge(gr.value) + '</td>' +
+      '<td style="padding:10px;border-bottom:1px solid var(--md-sys-color-outline-variant);font-size:14px">' + (gr.weight !== 1 ? '<strong>' + gr.weight + '\u00d7</strong>' : '1\u00d7') + '</td>' +
+      '<td style="padding:10px;border-bottom:1px solid var(--md-sys-color-outline-variant);font-size:13px;color:var(--md-sys-color-on-surface-variant);max-width:200px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap">' + (gr.labels.join(", ") || "\u2014") + '</td>' +
+      '<td style="padding:10px;border-bottom:1px solid var(--md-sys-color-outline-variant);white-space:nowrap;text-align:right">' +
+        '<button class="icon-btn-sm btn-edit" data-index="' + i + '"><span class="material-symbols-rounded">edit</span></button>' +
+        '<button class="icon-btn-sm btn-del"  data-index="' + i + '" style="color:var(--md-sys-color-error)"><span class="material-symbols-rounded">delete</span></button>' +
+      '</td>' +
+    '</tr>'
+  ).join("") : '<tr><td colspan="4" style="padding:32px;text-align:center;color:var(--md-sys-color-on-surface-variant)">Keine Noten.</td></tr>';
 
-  const rows = g.length ? g.map((gr, i) => `
-    <tr>
-      <td style="padding:10px;border-bottom:1px solid var(--md-sys-color-outline-variant)">${gradeBadge(gr.value)}</td>
-      <td style="padding:10px;border-bottom:1px solid var(--md-sys-color-outline-variant);font-size:14px">${gr.weight !== 1 ? "<strong>" + gr.weight + "×</strong>" : "1×"}</td>
-      <td style="padding:10px;border-bottom:1px solid var(--md-sys-color-outline-variant);font-size:13px;color:var(--md-sys-color-on-surface-variant);max-width:200px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap">${gr.labels.join(", ") || "—"}</td>
-      <td style="padding:10px;border-bottom:1px solid var(--md-sys-color-outline-variant);white-space:nowrap;text-align:right">
-        <button class="icon-btn-sm btn-edit" data-index="${i}">
-          <span class="material-symbols-rounded">edit</span>
-        </button>
-        <button class="icon-btn-sm btn-del" data-index="${i}" style="color:var(--md-sys-color-error)">
-          <span class="material-symbols-rounded">delete</span>
-        </button>
-      </td>
-    </tr>`).join("")
-  : `<tr><td colspan="4" style="padding:32px;text-align:center;color:var(--md-sys-color-on-surface-variant)">Keine Noten.</td></tr>`;
+  container.innerHTML =
+    '<div class="back-bar"><button class="icon-btn" id="btnBack"><span class="material-symbols-rounded">arrow_back</span></button><span class="back-bar__title">' + subject.name + '</span>' +
+    '<div class="back-bar__actions"><button class="icon-btn" id="btnRename"><span class="material-symbols-rounded">edit</span></button>' +
+    '<button class="icon-btn" id="btnDelSubject" style="color:var(--md-sys-color-error)"><span class="material-symbols-rounded">delete</span></button></div></div>' +
+    (avg !== null ? '<div class="card stat-banner-grid" style="margin-bottom:16px">' + statChip("Durchschnitt", avg.toFixed(2)) + statChip("Eintr\u00e4ge", g.length, "--md-sys-color-secondary") + statChip("Beste Note", Math.min(...g.map(x => x.value)), "--md-sys-color-tertiary") + '</div>' : '') +
+    '<div class="card" style="padding:0;overflow:hidden"><table class="grade-table" style="width:100%;border-collapse:collapse">' +
+    '<thead><tr>' + ['Note','Gew.','Labels',''].map(h => '<th style="text-align:left;padding:8px 10px;font-size:12px;color:var(--md-sys-color-on-surface-variant);border-bottom:1px solid var(--md-sys-color-outline-variant)">' + h + '</th>').join("") + '</tr></thead>' +
+    '<tbody>' + rows + '</tbody></table></div>';
 
-  container.innerHTML = `
-    <div class="back-bar">
-      <button class="icon-btn" id="btnBack">
-        <span class="material-symbols-rounded">arrow_back</span>
-      </button>
-      <span class="back-bar__title">${subject.name}</span>
-      <div class="back-bar__actions">
-        <button class="icon-btn" id="btnRename" title="Umbenennen">
-          <span class="material-symbols-rounded">edit</span>
-        </button>
-        <button class="icon-btn" id="btnDelSubject" title="Löschen"
-                style="color:var(--md-sys-color-error)">
-          <span class="material-symbols-rounded">delete</span>
-        </button>
-      </div>
-    </div>
-
-    ${avg !== null ? `
-    <div class="card stat-banner-grid" style="margin-bottom:16px">
-      ${statChip("Durchschnitt", avg.toFixed(2))}
-      ${statChip("Einträge", g.length, "--md-sys-color-secondary")}
-      ${statChip("Beste Note", Math.min(...g.map(x => x.value)), "--md-sys-color-tertiary")}
-    </div>` : ""}
-
-    <div class="card" style="padding:0;overflow:hidden">
-      <table class="grade-table" style="width:100%;border-collapse:collapse">
-        <thead><tr>
-          <th style="text-align:left;padding:8px 10px;font-size:12px;color:var(--md-sys-color-on-surface-variant);border-bottom:1px solid var(--md-sys-color-outline-variant)">Note</th>
-          <th style="text-align:left;padding:8px 10px;font-size:12px;color:var(--md-sys-color-on-surface-variant);border-bottom:1px solid var(--md-sys-color-outline-variant)">Gew.</th>
-          <th style="text-align:left;padding:8px 10px;font-size:12px;color:var(--md-sys-color-on-surface-variant);border-bottom:1px solid var(--md-sys-color-outline-variant)">Labels</th>
-          <th style="border-bottom:1px solid var(--md-sys-color-outline-variant)"></th>
-        </tr></thead>
-        <tbody>${rows}</tbody>
-      </table>
-    </div>`;
-
-  container.querySelector("#btnBack").addEventListener("click", () => {
-    detailSubject = null; clearPrimaryAction(); renderGrid(container);
-  });
-
+  container.querySelector("#btnBack").addEventListener("click", () => { detailSubject = null; clearPrimaryAction(); renderGrid(container); });
   container.querySelector("#btnRename").addEventListener("click", () => {
-    const dlg = openDialog("Fach umbenennen",
-      `<md-outlined-text-field id="dlgNewName" label="Neuer Name"
-           value="${subject.name}" style="width:100%"></md-outlined-text-field>`);
+    const dlg = openDialog("Fach umbenennen", '<md-outlined-text-field id="dlgNewName" label="Neuer Name" value="' + subject.name + '" style="width:100%"></md-outlined-text-field>');
     dlg.addEventListener("close", async () => {
       if (dlg.returnValue !== "confirm") return;
-      const name = dlg.querySelector("#dlgNewName").value.trim();
-      if (!name || name === subject.name) return;
+      const name = dlg.querySelector("#dlgNewName").value.trim(); if (!name || name === subject.name) return;
       try {
         await apiFetch("/api/subjects", { method: "POST", body: JSON.stringify({ name }) });
-        for (const gr of subject.grades)
-          await apiFetch(`/api/subjects/${encodeURIComponent(name)}/grades`,
-            { method: "POST", body: JSON.stringify({ value: gr.value, weight: gr.weight, labels: gr.labels }) });
-        await apiFetch(`/api/subjects/${encodeURIComponent(subject.name)}`, { method: "DELETE" });
-        showSnackbar("Umbenannt zu '" + name + "'.");
-        detailSubject = name;
-        await renderDetail(container);
+        for (const gr of subject.grades) await apiFetch("/api/subjects/" + encodeURIComponent(name) + "/grades", { method: "POST", body: JSON.stringify({ value: gr.value, weight: gr.weight, labels: gr.labels }) });
+        await apiFetch("/api/subjects/" + encodeURIComponent(subject.name), { method: "DELETE" });
+        showSnackbar("Umbenannt zu '" + name + "'."); detailSubject = name; await renderDetail(container);
       } catch(e) { showSnackbar(e.message, "error"); }
     });
   });
-
   container.querySelector("#btnDelSubject").addEventListener("click", () => {
-    const dlg = openDialog("Fach löschen",
-      `<p style="font-size:14px">Fach '<strong>${subject.name}</strong>' und alle ${g.length} Noten unwiderruflich löschen?</p>`,
-      "Löschen", true);
+    const dlg = openDialog("Fach l\u00f6schen", '<p style="font-size:14px">Fach <strong>' + subject.name + '</strong> und alle ' + g.length + ' Noten l\u00f6schen?</p>', "L\u00f6schen", true);
     dlg.addEventListener("close", async () => {
       if (dlg.returnValue !== "confirm") return;
-      try {
-        await apiFetch(`/api/subjects/${encodeURIComponent(subject.name)}`, { method: "DELETE" });
-        showSnackbar("'" + subject.name + "' gelöscht.");
-        detailSubject = null; clearPrimaryAction();
-        await renderGrid(container);
-      } catch(e) { showSnackbar(e.message, "error"); }
+      try { await apiFetch("/api/subjects/" + encodeURIComponent(subject.name), { method: "DELETE" }); showSnackbar("'" + subject.name + "' gel\u00f6scht."); detailSubject = null; clearPrimaryAction(); await renderGrid(container); }
+      catch(e) { showSnackbar(e.message, "error"); }
     });
   });
-
-  container.querySelectorAll(".btn-edit").forEach(btn => {
-    btn.addEventListener("click", () =>
-      openGradeDialog(container, subject, parseInt(btn.dataset.index), subjects, rewardConfig));
-  });
-
-  container.querySelectorAll(".btn-del").forEach(btn => {
-    btn.addEventListener("click", () => {
-      const idx = parseInt(btn.dataset.index);
-      const gr  = subject.grades[idx];
-      const dlg = openDialog("Note löschen",
-        `<p style="font-size:14px">Note <strong>${gr.value}</strong> (${gr.weight}×) löschen?</p>`,
-        "Löschen", true);
-      dlg.addEventListener("close", async () => {
-        if (dlg.returnValue !== "confirm") return;
-        try {
-          await apiFetch(
-            `/api/subjects/${encodeURIComponent(subject.name)}/grades/${idx}?adjust_wallet=1`,
-            { method: "DELETE" });
-          showSnackbar("Note gelöscht.");
-          await refreshDetail(container, subject.name, rewardConfig);
-        } catch(e) { showSnackbar(e.message, "error"); }
-      });
+  container.querySelectorAll(".btn-edit").forEach(btn => btn.addEventListener("click", () => openGradeDialog(container, subject, parseInt(btn.dataset.index), subjects, rewardConfig)));
+  container.querySelectorAll(".btn-del").forEach(btn => btn.addEventListener("click", () => {
+    const idx = parseInt(btn.dataset.index), gr = subject.grades[idx];
+    const dlg = openDialog("Note l\u00f6schen", '<p style="font-size:14px">Note <strong>' + gr.value + '</strong> (' + gr.weight + '\u00d7) l\u00f6schen?</p>', "L\u00f6schen", true);
+    dlg.addEventListener("close", async () => {
+      if (dlg.returnValue !== "confirm") return;
+      try { await apiFetch("/api/subjects/" + encodeURIComponent(subject.name) + "/grades/" + idx + "?adjust_wallet=1", { method: "DELETE" }); showSnackbar("Note gel\u00f6scht."); await refreshDetail(container, subject.name, rewardConfig); }
+      catch(e) { showSnackbar(e.message, "error"); }
     });
-  });
+  }));
 }
 
 async function refreshDetail(container, name, rewardConfig) {
-  const subjects = await apiFetch("/api/subjects");
-  const subject  = subjects.find(s => s.name === name);
+  const subjects = await apiFetch("/api/subjects"), subject = subjects.find(s => s.name === name);
   if (!subject) { detailSubject = null; clearPrimaryAction(); return renderGrid(container); }
   drawDetail(container, subject, subjects, rewardConfig);
 }
 
-// ---------------------------------------------------------------------------
-// Grade add/edit dialog
-// ---------------------------------------------------------------------------
 function openGradeDialog(container, subject, editIndex, subjects, rewardConfig) {
   const gr = editIndex !== null ? subject.grades[editIndex] : null;
-  const dlg = openDialog(
-    gr ? "Note bearbeiten" : "Note hinzufügen",
-    `<md-outlined-text-field id="dlgVal" label="Note (1–6)" type="number"
-         min="1" max="6" step="0.5" value="${gr?.value ?? ""}" style="width:100%">
-     </md-outlined-text-field>
-     <md-outlined-text-field id="dlgWt" label="Gewichtung" type="number"
-         min="0.5" step="0.5" value="${gr?.weight ?? 1}" style="width:100%">
-     </md-outlined-text-field>
-     <md-outlined-text-field id="dlgLbl" label="Labels (Komma getrennt)"
-         value="${gr?.labels?.join(", ") ?? ""}" style="width:100%">
-     </md-outlined-text-field>`,
-    gr ? "Speichern" : "Hinzufügen");
-
+  const dlg = openDialog(gr ? "Note bearbeiten" : "Note hinzuf\u00fcgen",
+    '<md-outlined-text-field id="dlgVal" label="Note (1\u20136)" type="number" min="1" max="6" step="0.5" value="' + (gr?.value ?? "") + '" style="width:100%"></md-outlined-text-field>' +
+    '<md-outlined-text-field id="dlgWt"  label="Gewichtung" type="number" min="0.5" step="0.5" value="' + (gr?.weight ?? 1) + '" style="width:100%"></md-outlined-text-field>' +
+    '<md-outlined-text-field id="dlgLbl" label="Labels (Komma getrennt)" value="' + (gr?.labels?.join(", ") ?? "") + '" style="width:100%"></md-outlined-text-field>',
+    gr ? "Speichern" : "Hinzuf\u00fcgen");
   dlg.addEventListener("close", async () => {
     if (dlg.returnValue !== "confirm") return;
-    const fVal = dlg.querySelector("#dlgVal");
-    const fWt  = dlg.querySelector("#dlgWt");
-    if (!validateAll([[fVal, validators.gradeValue], [fWt, validators.positiveNumber]])) return;
-    const value  = parseFloat(fVal.value);
-    const weight = parseFloat(fWt.value) || 1;
-    const raw    = dlg.querySelector("#dlgLbl").value.trim();
-    const labels = raw ? raw.split(",").map(l => l.trim()).filter(Boolean) : [];
-    const url    = editIndex !== null
-      ? `/api/subjects/${encodeURIComponent(subject.name)}/grades/${editIndex}`
-      : `/api/subjects/${encodeURIComponent(subject.name)}/grades`;
-    try {
-      await apiFetch(url, { method: editIndex !== null ? "PUT" : "POST",
-        body: JSON.stringify({ value, weight, labels }) });
-      showSnackbar(editIndex !== null ? "Note aktualisiert." : "Note hinzugefügt.");
-      await refreshDetail(container, subject.name, rewardConfig);
-    } catch(e) { showSnackbar(e.message, "error"); }
+    const fVal = dlg.querySelector("#dlgVal"), fWt = dlg.querySelector("#dlgWt");
+    if (!validateAll([[fVal, validators.gradeValue],[fWt, validators.positiveNumber]])) return;
+    const value = parseFloat(fVal.value), weight = parseFloat(fWt.value) || 1;
+    const raw = dlg.querySelector("#dlgLbl").value.trim(), labels = raw ? raw.split(",").map(l => l.trim()).filter(Boolean) : [];
+    const url = editIndex !== null ? "/api/subjects/" + encodeURIComponent(subject.name) + "/grades/" + editIndex : "/api/subjects/" + encodeURIComponent(subject.name) + "/grades";
+    try { await apiFetch(url, { method: editIndex !== null ? "PUT" : "POST", body: JSON.stringify({ value, weight, labels }) }); showSnackbar(editIndex !== null ? "Note aktualisiert." : "Note hinzugef\u00fcgt."); await refreshDetail(container, subject.name, rewardConfig); }
+    catch(e) { showSnackbar(e.message, "error"); }
   });
 }
 
 function injectStyles() {
   if (document.getElementById("ov-css")) return;
   const s = document.createElement("style"); s.id = "ov-css";
-  s.textContent = `
-    .ov-card.card { cursor:pointer; transition:background .15s; }
-    .ov-card.card:hover { background:var(--md-sys-color-surface-container); }
-    @media(max-width:600px){
-      .ov-toolbar-right { width:100%; }
-      .ov-toolbar-right md-filled-tonal-button { flex:1; }
-    }
-  `;
+  s.textContent = ".ov-card.card { cursor:pointer; transition:background .15s; padding:16px 20px; } .ov-card.card:hover { background:var(--md-sys-color-surface-container); }";
   document.head.appendChild(s);
 }

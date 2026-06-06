@@ -2,9 +2,6 @@
  * app.js – Shell: router, dark mode, FAB, snackbar, skeletons
  */
 
-// ---------------------------------------------------------------------------
-// Page registry
-// ---------------------------------------------------------------------------
 const PAGES = {
   overview: { title: "Übersicht",      loader: () => import("/static/js/pages/overview.js") },
   wallet:   { title: "Konto & Verlauf", loader: () => import("/static/js/pages/wallet.js")   },
@@ -13,9 +10,6 @@ const PAGES = {
 };
 const DEFAULT_PAGE = "overview";
 
-// ---------------------------------------------------------------------------
-// DOM refs
-// ---------------------------------------------------------------------------
 const navDrawer      = document.getElementById("navDrawer");
 const drawerBackdrop = document.getElementById("drawerBackdrop");
 const pageContainer  = document.getElementById("pageContainer");
@@ -32,9 +26,9 @@ function currentPageKey() {
   return hash in PAGES ? hash : DEFAULT_PAGE;
 }
 
-function navigateTo(key) {
+export function navigateTo(key) {
   if (!(key in PAGES)) key = DEFAULT_PAGE;
-  history.pushState(null, "", `#${key}`);
+  history.pushState(null, "", "#" + key);
   renderPage(key);
 }
 
@@ -46,11 +40,15 @@ async function renderPage(key) {
   updateActiveNav(key);
   if (pageTitle) pageTitle.textContent = page.title;
 
-  pageContainer.innerHTML = `
-    <div class="page-placeholder">
-      <span class="material-symbols-rounded page-placeholder__icon">hourglass_top</span>
-      <p>Lade…</p>
-    </div>`;
+  // Clean up any injected page-specific top-bar elements (e.g. overview overflow menu)
+  document.getElementById("ov-overflow-btn")?.remove();
+  document.getElementById("ov-overflow-menu")?.remove();
+
+  pageContainer.innerHTML =
+    '<div class="page-placeholder">' +
+      '<span class="material-symbols-rounded page-placeholder__icon">hourglass_top</span>' +
+      '<p>Lade\u2026</p>' +
+    '</div>';
 
   try {
     const mod = await page.loader();
@@ -59,13 +57,12 @@ async function renderPage(key) {
       await mod.default(pageContainer);
     }
   } catch (err) {
-    console.error(`Page '${key}' failed:`, err);
-    pageContainer.innerHTML = `
-      <div class="page-placeholder">
-        <span class="material-symbols-rounded page-placeholder__icon"
-              style="color:var(--md-sys-color-error)">error</span>
-        <p style="font-size:13px;color:var(--md-sys-color-on-surface-variant)">${err.message}</p>
-      </div>`;
+    console.error("Page '" + key + "' failed:", err);
+    pageContainer.innerHTML =
+      '<div class="page-placeholder">' +
+        '<span class="material-symbols-rounded page-placeholder__icon" style="color:var(--md-sys-color-error)">error</span>' +
+        '<p style="font-size:13px;color:var(--md-sys-color-on-surface-variant)">' + err.message + '</p>' +
+      '</div>';
   }
 }
 
@@ -80,10 +77,6 @@ function updateActiveNav(key) {
 // ---------------------------------------------------------------------------
 // Drawer (mobile only)
 // ---------------------------------------------------------------------------
-function openDrawer() {
-  navDrawer.classList.add("open");
-  drawerBackdrop.classList.add("visible");
-}
 function closeDrawer() {
   navDrawer.classList.remove("open");
   drawerBackdrop.classList.remove("visible");
@@ -109,28 +102,24 @@ let _fabCallback = null;
 
 export function setPrimaryAction(icon, label, callback) {
   _fabCallback = callback;
-
   const iconEl  = document.getElementById("navFabIcon");
   const labelEl = document.getElementById("navFabLabel");
   const mobIcon = document.getElementById("mobFabIcon");
-
   if (iconEl)  iconEl.textContent  = icon;
   if (labelEl) labelEl.textContent = label;
   if (mobIcon) mobIcon.textContent = icon;
-
-  if (navFab) { navFab.removeAttribute("hidden"); }
+  if (navFab) navFab.removeAttribute("hidden");
   mobFab?.removeAttribute("hidden");
 }
 
 export function clearPrimaryAction() {
   _fabCallback = null;
-  if (navFab) { navFab.setAttribute("hidden", ""); }
+  if (navFab) navFab.setAttribute("hidden", "");
   mobFab?.setAttribute("hidden", "");
 }
 
-function _onFabClick() { _fabCallback?.(); }
-navFab?.addEventListener("click", _onFabClick);
-mobFab?.addEventListener("click", _onFabClick);
+navFab?.addEventListener("click", () => _fabCallback?.());
+mobFab?.addEventListener("click", () => _fabCallback?.());
 
 // ---------------------------------------------------------------------------
 // API fetch helper
@@ -142,7 +131,7 @@ export async function apiFetch(url, options = {}) {
   });
   if (res.status === 204) return undefined;
   const body = await res.json().catch(() => ({}));
-  if (!res.ok) throw new Error(body?.description ?? body?.error ?? `HTTP ${res.status}`);
+  if (!res.ok) throw new Error(body?.description ?? body?.error ?? "HTTP " + res.status);
   return body;
 }
 
@@ -162,15 +151,11 @@ async function checkStartupStatus() {
   const missing = status.files.filter(f => f.status === "missing");
   const corrupt = status.files.filter(f => f.status === "corrupt");
 
-  if (appCfg.verbose_loading && ok.length) {
-    setTimeout(() => {
-      showSnackbar(ok.map(f => f.name).join(", ") + " geladen.");
-    }, 600);
-  }
+  if (appCfg.verbose_loading && ok.length)
+    setTimeout(() => showSnackbar(ok.map(f => f.name).join(", ") + " geladen."), 600);
 
-  if (missing.length || corrupt.length) {
+  if (missing.length || corrupt.length)
     _showLoadErrorDialog(missing, corrupt);
-  }
 }
 
 function _showLoadErrorDialog(missing, corrupt) {
@@ -186,14 +171,11 @@ function _showLoadErrorDialog(missing, corrupt) {
       f.path + '</code></div>';
   }
 
-  const missingRows = missing.map(fileRow).join("");
-  const corruptRows = corrupt.map(fileRow).join("");
-
   const missingSection = missing.length
-    ? '<p style="font-size:14px;font-weight:600;margin-bottom:8px">Datei nicht gefunden:</p>' + missingRows
+    ? '<p style="font-size:14px;font-weight:600;margin-bottom:8px">Datei nicht gefunden:</p>' + missing.map(fileRow).join("")
     : "";
   const corruptSection = corrupt.length
-    ? '<p style="font-size:14px;font-weight:600;margin-top:8px;margin-bottom:8px">Datei beschädigt:</p>' + corruptRows
+    ? '<p style="font-size:14px;font-weight:600;margin-top:8px;margin-bottom:8px">Datei besch\u00e4digt:</p>' + corrupt.map(fileRow).join("")
     : "";
 
   wrap.innerHTML =
@@ -201,8 +183,8 @@ function _showLoadErrorDialog(missing, corrupt) {
     'display:flex;align-items:center;justify-content:center;padding:24px">' +
       '<div style="background:var(--md-sys-color-surface-container-high);border-radius:28px;' +
       'max-width:520px;width:100%;box-shadow:0 8px 24px rgba(0,0,0,.18);overflow:hidden">' +
-        '<div style="padding:24px 24px 0;font-size:22px;font-weight:500;' +
-        'color:var(--md-sys-color-error)">\u26A0 Ladefehler</div>' +
+        '<div style="padding:24px 24px 0;font-size:22px;font-weight:500;color:var(--md-sys-color-error)">' +
+          '\u26A0 Ladefehler</div>' +
         '<div style="padding:16px 24px;max-height:60vh;overflow-y:auto">' +
           missingSection + corruptSection +
           '<p style="font-size:13px;color:var(--md-sys-color-on-surface-variant);margin-top:12px">' +
@@ -231,31 +213,19 @@ export function showSnackbar(message, type = "info") {
     bar = document.createElement("div");
     bar.id = "snackbar";
     Object.assign(bar.style, {
-      position:      "fixed",
-      bottom:        "calc(var(--bottom-nav-height, 0px) + 16px)",
-      left:          "50%",
-      transform:     "translateX(-50%)",
-      padding:       "12px 20px",
-      borderRadius:  "var(--shape-corner-small)",
-      fontSize:      "14px",
-      maxWidth:      "90vw",
-      textAlign:     "center",
-      boxShadow:     "var(--elevation-2)",
-      zIndex:        "9999",
-      opacity:       "0",
-      transition:    "opacity .2s ease",
-      pointerEvents: "none",
+      position: "fixed", bottom: "calc(var(--bottom-nav-height, 0px) + 16px)",
+      left: "50%", transform: "translateX(-50%)",
+      padding: "12px 20px", borderRadius: "var(--shape-corner-small)",
+      fontSize: "14px", maxWidth: "90vw", textAlign: "center",
+      boxShadow: "var(--elevation-2)", zIndex: "9999",
+      opacity: "0", transition: "opacity .2s ease", pointerEvents: "none",
     });
     document.body.appendChild(bar);
   }
-
-  bar.style.background = type === "error"
-    ? "var(--md-sys-color-error)"    : "var(--md-sys-color-on-surface)";
-  bar.style.color = type === "error"
-    ? "var(--md-sys-color-on-error)" : "var(--md-sys-color-surface)";
+  bar.style.background = type === "error" ? "var(--md-sys-color-error)"    : "var(--md-sys-color-on-surface)";
+  bar.style.color      = type === "error" ? "var(--md-sys-color-on-error)" : "var(--md-sys-color-surface)";
   bar.textContent = message;
   bar.style.opacity = "1";
-
   clearTimeout(_snackbarTimer);
   _snackbarTimer = setTimeout(() => { bar.style.opacity = "0"; }, 3500);
 }
@@ -264,7 +234,6 @@ export function showSnackbar(message, type = "info") {
 // Dark mode
 // ---------------------------------------------------------------------------
 const THEME_KEY = "nr-theme";
-
 function getThemePref() { return localStorage.getItem(THEME_KEY) ?? "system"; }
 
 function applyTheme(pref) {
@@ -272,19 +241,12 @@ function applyTheme(pref) {
   if      (pref === "dark")  root.setAttribute("data-theme", "dark");
   else if (pref === "light") root.setAttribute("data-theme", "light");
   else                       root.removeAttribute("data-theme");
-
   const sysDark = window.matchMedia("(prefers-color-scheme: dark)").matches;
   const isDark  = pref === "dark" || (pref === "system" && sysDark);
-
-  const icon  = isDark ? "light_mode" : "dark_mode";
-  const label = isDark ? "Light Mode"  : "Dark Mode";
-
-  ["themeIcon", "themeIconMobile"].forEach(id => {
-    const el = document.getElementById(id);
-    if (el) el.textContent = icon;
-  });
+  const icon    = isDark ? "light_mode" : "dark_mode";
+  ["themeIcon", "themeIconMobile"].forEach(id => { const el = document.getElementById(id); if (el) el.textContent = icon; });
   const labelEl = document.getElementById("themeLabel");
-  if (labelEl) labelEl.textContent = label;
+  if (labelEl) labelEl.textContent = isDark ? "Light Mode" : "Dark Mode";
 }
 
 function toggleTheme() {
@@ -298,28 +260,22 @@ function toggleTheme() {
 
 document.getElementById("themeToggle")?.addEventListener("click", toggleTheme);
 document.getElementById("themeToggleMobile")?.addEventListener("click", toggleTheme);
-
 applyTheme(getThemePref());
 window.matchMedia("(prefers-color-scheme: dark)")
-  .addEventListener("change", () => {
-    if (getThemePref() === "system") applyTheme("system");
-  });
+  .addEventListener("change", () => { if (getThemePref() === "system") applyTheme("system"); });
 
 // ---------------------------------------------------------------------------
 // Skeleton helpers
 // ---------------------------------------------------------------------------
 export function skeletonCard(lineClasses = ["title", "medium", "short"]) {
-  return `<div class="skeleton-card">
-    ${lineClasses.map(c =>
-      `<div class="skeleton skeleton-line skeleton-line--${c}"></div>`
-    ).join("")}
-  </div>`;
+  return '<div class="skeleton-card">' +
+    lineClasses.map(c => '<div class="skeleton skeleton-line skeleton-line--' + c + '"></div>').join("") +
+    '</div>';
 }
 
 export function skeletonGrid(n = 3, lineClasses) {
-  return `<div style="display:grid;grid-template-columns:repeat(auto-fill,minmax(280px,1fr));gap:16px">
-    ${Array.from({ length: n }, () => skeletonCard(lineClasses)).join("")}
-  </div>`;
+  return '<div style="display:grid;grid-template-columns:repeat(auto-fill,minmax(280px,1fr));gap:16px">' +
+    Array.from({ length: n }, () => skeletonCard(lineClasses)).join("") + '</div>';
 }
 
 // ---------------------------------------------------------------------------
@@ -327,3 +283,6 @@ export function skeletonGrid(n = 3, lineClasses) {
 // ---------------------------------------------------------------------------
 renderPage(currentPageKey());
 checkStartupStatus();
+setTimeout(() => {
+  import("/static/js/tour.js").then(m => m.checkTour()).catch(() => {});
+}, 900);
