@@ -1,6 +1,5 @@
 /**
  * settings.js – Stack-based sub-navigation
- * Uses native .btn-tonal for save buttons (reliable padding vs md-filled-tonal-button).
  */
 import { apiFetch, showSnackbar, clearPrimaryAction } from "../app.js";
 import { errorBanner, openDialog, injectComponentStyles } from "../components.js";
@@ -24,16 +23,10 @@ async function renderCurrent(container) {
 }
 
 function back(container) { stack.pop(); renderCurrent(container); }
-
 function backBar(title) {
-  return '<div class="back-bar" style="margin-bottom:20px" id="backBar">' +
-    '<button class="icon-btn" id="btnBack"><span class="material-symbols-rounded">arrow_back</span></button>' +
-    '<span class="back-bar__title">' + title + '</span>' +
-  '</div>';
+  return '<div class="back-bar" style="margin-bottom:20px" id="backBar"><button class="icon-btn" id="btnBack"><span class="material-symbols-rounded">arrow_back</span></button><span class="back-bar__title">'+title+'</span></div>';
 }
-function bindBack(container) {
-  container.querySelector("#btnBack")?.addEventListener("click", () => back(container));
-}
+function bindBack(container) { container.querySelector("#btnBack")?.addEventListener("click", ()=>back(container)); }
 
 // ---------------------------------------------------------------------------
 // Main menu
@@ -42,34 +35,29 @@ function renderMain(container) {
   container.innerHTML =
     '<h2 style="font-size:22px;font-weight:500;margin-bottom:20px">Einstellungen</h2>' +
     '<div class="settings-menu">' +
-      item("Belohnungssystem", "redeem",       "rewards", "Punkte, Modus, Belohnungen") +
-      item("Datenpfade",       "folder",        "paths",   "Speicherorte der JSON-Dateien") +
-      item("Ladehinweise",     "notifications", "loading", "Verbose-Loading ein-/ausschalten") +
-      item("Backup & Reset",   "restart_alt",   "reset",   "Backup, Logs leeren, Daten zur\u00fccksetzen") +
-      item("App-Tour starten", "flag",          "tour",    "Einf\u00fchrung erneut anzeigen") +
+      item("Belohnungssystem","redeem",      "rewards","Punkte, Modus, Belohnungen") +
+      item("Datenpfade",      "folder",       "paths",  "Speicherorte der JSON-Dateien") +
+      item("Ladehinweise",    "notifications","loading","Verbose-Loading ein-/ausschalten") +
+      item("Backup & Reset",  "restart_alt",  "reset",  "Backup, Logs leeren, Daten zur\u00fccksetzen") +
+      item("App-Tour starten","flag",         "tour",   "Einf\u00fchrung erneut anzeigen") +
     '</div>';
-
   container.querySelectorAll(".settings-menu-item").forEach(btn =>
     btn.addEventListener("click", async () => {
       if (btn.dataset.target === "tour") {
-        try { const { startTour } = await import("/static/js/tour.js"); startTour(); }
-        catch(e) { showSnackbar("Tour konnte nicht geladen werden.", "error"); }
+        try { const {startTour} = await import("/static/js/tour.js"); startTour(); }
+        catch(e) { showSnackbar("Tour konnte nicht geladen werden.","error"); }
         return;
       }
-      stack.push(btn.dataset.target);
-      renderCurrent(container);
+      stack.push(btn.dataset.target); renderCurrent(container);
     })
   );
 }
 
-function item(label, icon, target, sub = "") {
-  return '<button class="settings-menu-item" data-target="' + target + '">' +
-    '<div>' +
-      '<div style="font-size:15px;font-weight:500">' + label + '</div>' +
-      (sub ? '<div style="font-size:12px;color:var(--md-sys-color-on-surface-variant);margin-top:2px">' + sub + '</div>' : '') +
-    '</div>' +
-    '<span class="material-symbols-rounded">chevron_right</span>' +
-  '</button>';
+function item(label, icon, target, sub="") {
+  return '<button class="settings-menu-item" data-target="'+target+'">' +
+    '<div><div style="font-size:15px;font-weight:500">'+label+'</div>' +
+    (sub?'<div style="font-size:12px;color:var(--md-sys-color-on-surface-variant);margin-top:2px">'+sub+'</div>':'')+
+    '</div><span class="material-symbols-rounded">chevron_right</span></button>';
 }
 
 // ---------------------------------------------------------------------------
@@ -83,16 +71,30 @@ async function renderRewards(container) {
   try { cfg = await apiFetch("/api/reward-config"); }
   catch(e) { container.innerHTML += errorBanner(e.message); return; }
 
-  const modeLabel = { money: "Geld (\u20ac)", unit: "Eigene Einheit", points: "Nur Punkte" };
+  const modeLabel = {money:"Geld (\u20ac)",unit:"Eigene Einheit",points:"Nur Punkte"};
   const div = document.createElement("div");
-  let html =
+
+  // Info banner – warn against changing settings mid-year
+  const infoBanner =
+    '<div class="card" style="margin-bottom:12px;border-color:var(--md-sys-color-primary-container);' +
+    'background:color-mix(in srgb,var(--md-sys-color-primary) 6%,var(--md-sys-color-surface))">' +
+      '<div style="display:flex;gap:10px;align-items:flex-start">' +
+        '<span class="material-symbols-rounded" style="color:var(--md-sys-color-primary);flex-shrink:0;margin-top:1px">info</span>' +
+        '<div>' +
+          '<div style="font-size:14px;font-weight:500;margin-bottom:4px">Einstellungen m\u00f6glichst nicht mid-year \u00e4ndern</div>' +
+          '<div style="font-size:13px;color:var(--md-sys-color-on-surface-variant);line-height:1.5">' +
+            '\u00c4nderungen an Punkten oder Modus werden nicht r\u00fcckwirkend berechnet. Vergangene Noten behalten ihren alten Wert, was das Guthaben verzerren kann. Einstellungen am besten zu Schuljahresbeginn festlegen.' +
+          '</div>' +
+        '</div>' +
+      '</div>' +
+    '</div>';
+
+  let html = infoBanner +
     '<div class="card" style="margin-bottom:12px">' +
       '<div style="display:flex;align-items:center;justify-content:space-between">' +
-        '<div>' +
-          '<div style="font-size:15px;font-weight:500">Belohnungssystem</div>' +
-          '<div style="font-size:12px;color:var(--md-sys-color-on-surface-variant);margin-top:2px">' + (cfg.enabled ? "Aktiv" : "Deaktiviert") + '</div>' +
-        '</div>' +
-        '<md-switch id="swEnabled" ' + (cfg.enabled ? "selected" : "") + '></md-switch>' +
+        '<div><div style="font-size:15px;font-weight:500">Belohnungssystem</div>' +
+        '<div style="font-size:12px;color:var(--md-sys-color-on-surface-variant);margin-top:2px">'+(cfg.enabled?"Aktiv":"Deaktiviert")+'</div></div>' +
+        '<md-switch id="swEnabled" '+(cfg.enabled?"selected":"")+'></md-switch>' +
       '</div>' +
     '</div>';
 
@@ -101,31 +103,27 @@ async function renderRewards(container) {
       '<div class="card" style="margin-bottom:12px">' +
         '<div style="font-size:12px;font-weight:600;text-transform:uppercase;letter-spacing:.05em;color:var(--md-sys-color-on-surface-variant);margin-bottom:12px">Modus</div>' +
         '<div style="display:flex;gap:8px;flex-wrap:wrap">' +
-          ["money","unit","points"].map(m =>
-            '<button class="tab-pill ' + (cfg.reward_mode === m ? "tab-pill--active" : "") + '" data-mode="' + m + '">' + modeLabel[m] + '</button>'
-          ).join("") +
+          ["money","unit","points"].map(m=>'<button class="tab-pill '+(cfg.reward_mode===m?"tab-pill--active":"")+'" data-mode="'+m+'">'+modeLabel[m]+'</button>').join("") +
         '</div>' +
       '</div>';
 
-    if (cfg.reward_mode === "money") {
-      // .btn-tonal instead of md-filled-tonal-button: reliable padding left/right
+    if (cfg.reward_mode==="money") {
       html +=
         '<div class="card" style="margin-bottom:12px">' +
           '<div style="font-size:12px;font-weight:600;text-transform:uppercase;letter-spacing:.05em;color:var(--md-sys-color-on-surface-variant);margin-bottom:12px">Geld pro Punkt</div>' +
           '<div style="display:flex;gap:10px;align-items:center;flex-wrap:wrap">' +
-            '<md-outlined-text-field id="fldMoney" label="\u20ac / Punkt" type="number" min="0.01" step="0.01" value="' + cfg.money_per_point.toFixed(2) + '" style="flex:1;min-width:120px"></md-outlined-text-field>' +
+            '<md-outlined-text-field id="fldMoney" label="\u20ac / Punkt" type="number" min="0.01" step="0.01" value="'+cfg.money_per_point.toFixed(2)+'" style="flex:1;min-width:120px"></md-outlined-text-field>' +
             '<button class="btn-tonal" id="btnSaveMoney">Speichern</button>' +
           '</div>' +
         '</div>';
     }
-
-    if (cfg.reward_mode === "unit") {
+    if (cfg.reward_mode==="unit") {
       html +=
         '<div class="card" style="margin-bottom:12px">' +
           '<div style="font-size:12px;font-weight:600;text-transform:uppercase;letter-spacing:.05em;color:var(--md-sys-color-on-surface-variant);margin-bottom:12px">Eigene Einheit</div>' +
           '<div style="display:flex;gap:10px;flex-wrap:wrap;align-items:flex-end">' +
-            '<md-outlined-text-field id="fldUnitName" label="Name" value="' + cfg.unit_name + '" style="flex:1;min-width:130px"></md-outlined-text-field>' +
-            '<md-outlined-text-field id="fldUnitPerPt" label="pro Punkt" type="number" min="0.01" step="0.01" value="' + cfg.unit_per_point + '" style="flex:1;min-width:110px"></md-outlined-text-field>' +
+            '<md-outlined-text-field id="fldUnitName" label="Name" value="'+cfg.unit_name+'" style="flex:1;min-width:130px"></md-outlined-text-field>' +
+            '<md-outlined-text-field id="fldUnitPerPt" label="pro Punkt" type="number" min="0.01" step="0.01" value="'+cfg.unit_per_point+'" style="flex:1;min-width:110px"></md-outlined-text-field>' +
             '<button class="btn-tonal" id="btnSaveUnit">Speichern</button>' +
           '</div>' +
         '</div>';
@@ -135,21 +133,15 @@ async function renderRewards(container) {
       '<div class="card">' +
         '<div style="font-size:12px;font-weight:600;text-transform:uppercase;letter-spacing:.05em;color:var(--md-sys-color-on-surface-variant);margin-bottom:12px">Punkte pro Note</div>' +
         '<table style="width:100%;border-collapse:collapse;font-size:14px">' +
-          Object.entries(cfg.points_map).map(([g, p]) =>
-            '<tr>' +
-              '<td style="padding:6px 4px;font-weight:500;width:60px">Note ' + g + '</td>' +
-              '<td><input type="number" class="pts-input" data-grade="' + g + '" value="' + p + '" min="0" step="1" style="width:72px;padding:6px 8px;border-radius:var(--shape-corner-extra-small);border:1px solid var(--md-sys-color-outline);font-size:14px;background:var(--md-sys-color-surface);color:var(--md-sys-color-on-surface)"/></td>' +
-              '<td style="font-size:12px;color:var(--md-sys-color-on-surface-variant);padding-left:8px">' +
-                (cfg.reward_mode === "money" ? "= " + (p * cfg.money_per_point).toFixed(2) + " \u20ac"
-                : cfg.reward_mode === "unit" ? "= " + (p * cfg.unit_per_point) + " " + cfg.unit_name
-                : "= " + p + " Pt.") +
-              '</td>' +
-            '</tr>'
+          Object.entries(cfg.points_map).map(([g,p]) =>
+            '<tr><td style="padding:6px 4px;font-weight:500;width:60px">Note '+g+'</td>' +
+            '<td><input type="number" class="pts-input" data-grade="'+g+'" value="'+p+'" min="0" step="1" style="width:72px;padding:6px 8px;border-radius:var(--shape-corner-extra-small);border:1px solid var(--md-sys-color-outline);font-size:14px;background:var(--md-sys-color-surface);color:var(--md-sys-color-on-surface)"/></td>' +
+            '<td style="font-size:12px;color:var(--md-sys-color-on-surface-variant);padding-left:8px">' +
+              (cfg.reward_mode==="money"?"= "+(p*cfg.money_per_point).toFixed(2)+" \u20ac":cfg.reward_mode==="unit"?"= "+(p*cfg.unit_per_point)+" "+cfg.unit_name:"= "+p+" Pt.") +
+            '</td></tr>'
           ).join("") +
         '</table>' +
-        '<div style="margin-top:12px">' +
-          '<button class="btn-tonal" id="btnSavePts">Punkte speichern</button>' +
-        '</div>' +
+        '<div style="margin-top:12px"><button class="btn-tonal" id="btnSavePts">Punkte speichern</button></div>' +
       '</div>';
   }
 
@@ -157,39 +149,33 @@ async function renderRewards(container) {
   container.appendChild(div);
 
   div.querySelector("#swEnabled")?.addEventListener("change", async e => {
-    cfg.enabled = e.target.selected;
-    try { await save(cfg); showSnackbar(cfg.enabled ? "Aktiviert." : "Deaktiviert."); await renderRewards(container); }
-    catch(err) { showSnackbar(err.message, "error"); }
+    cfg.enabled=e.target.selected;
+    try { await save(cfg); showSnackbar(cfg.enabled?"Aktiviert.":"Deaktiviert."); await renderRewards(container); }
+    catch(err) { showSnackbar(err.message,"error"); }
   });
-  div.querySelectorAll("[data-mode]").forEach(btn =>
-    btn.addEventListener("click", async () => {
-      cfg.reward_mode = btn.dataset.mode;
-      try { await save(cfg); showSnackbar("Modus ge\u00e4ndert."); await renderRewards(container); }
-      catch(err) { showSnackbar(err.message, "error"); }
-    })
-  );
-  div.querySelector("#btnSaveMoney")?.addEventListener("click", async () => {
-    const v = parseFloat(div.querySelector("#fldMoney").value);
-    if (isNaN(v) || v <= 0) { showSnackbar("Ung\u00fcltiger Wert.", "error"); return; }
-    cfg.money_per_point = v;
+  div.querySelectorAll("[data-mode]").forEach(btn=>btn.addEventListener("click", async()=>{
+    cfg.reward_mode=btn.dataset.mode;
+    try { await save(cfg); showSnackbar("Modus ge\u00e4ndert."); await renderRewards(container); }
+    catch(err) { showSnackbar(err.message,"error"); }
+  }));
+  div.querySelector("#btnSaveMoney")?.addEventListener("click", async()=>{
+    const v=parseFloat(div.querySelector("#fldMoney").value);
+    if (isNaN(v)||v<=0) { showSnackbar("Ung\u00fcltiger Wert.","error"); return; }
+    cfg.money_per_point=v;
     try { await save(cfg); showSnackbar("Gespeichert."); await renderRewards(container); }
-    catch(e) { showSnackbar(e.message, "error"); }
+    catch(e) { showSnackbar(e.message,"error"); }
   });
-  div.querySelector("#btnSaveUnit")?.addEventListener("click", async () => {
-    const n = div.querySelector("#fldUnitName").value.trim();
-    const p = parseFloat(div.querySelector("#fldUnitPerPt").value);
-    if (!n || isNaN(p) || p <= 0) { showSnackbar("Ung\u00fcltige Eingabe.", "error"); return; }
-    cfg.unit_name = n; cfg.unit_per_point = p;
+  div.querySelector("#btnSaveUnit")?.addEventListener("click", async()=>{
+    const n=div.querySelector("#fldUnitName").value.trim(), p=parseFloat(div.querySelector("#fldUnitPerPt").value);
+    if (!n||isNaN(p)||p<=0) { showSnackbar("Ung\u00fcltige Eingabe.","error"); return; }
+    cfg.unit_name=n; cfg.unit_per_point=p;
     try { await save(cfg); showSnackbar("Gespeichert."); await renderRewards(container); }
-    catch(e) { showSnackbar(e.message, "error"); }
+    catch(e) { showSnackbar(e.message,"error"); }
   });
-  div.querySelector("#btnSavePts")?.addEventListener("click", async () => {
-    div.querySelectorAll(".pts-input").forEach(inp => {
-      const g = parseInt(inp.dataset.grade), p = parseInt(inp.value);
-      if (!isNaN(p) && p >= 0) cfg.points_map[g] = p;
-    });
+  div.querySelector("#btnSavePts")?.addEventListener("click", async()=>{
+    div.querySelectorAll(".pts-input").forEach(inp=>{ const g=parseInt(inp.dataset.grade),p=parseInt(inp.value); if (!isNaN(p)&&p>=0) cfg.points_map[g]=p; });
     try { await save(cfg); showSnackbar("Gespeichert."); await renderRewards(container); }
-    catch(e) { showSnackbar(e.message, "error"); }
+    catch(e) { showSnackbar(e.message,"error"); }
   });
 }
 
@@ -197,22 +183,13 @@ async function renderRewards(container) {
 // Datenpfade
 // ---------------------------------------------------------------------------
 async function renderPaths(container) {
-  container.innerHTML = backBar("Datenpfade");
-  bindBack(container);
+  container.innerHTML = backBar("Datenpfade"); bindBack(container);
   let appCfg;
   try { appCfg = await apiFetch("/api/app-config"); }
   catch(e) { container.innerHTML += errorBanner(e.message); return; }
-  const p = (label, val) =>
-    '<div style="margin-bottom:14px">' +
-      '<div style="font-size:12px;color:var(--md-sys-color-on-surface-variant);margin-bottom:2px">' + label + '</div>' +
-      '<code style="font-size:13px;word-break:break-all;display:block">' + val + '</code>' +
-    '</div>';
-  const div = document.createElement("div");
-  div.className = "card";
-  div.innerHTML =
-    p("Noten", appCfg.data_path) + p("Wallet", appCfg.wallet_path) +
-    p("Belohnungskonfig", appCfg.reward_config_path) +
-    p("App-Konfiguration", appCfg.app_config_path) + p("Backups", appCfg.backup_path) +
+  const p=(label,val)=>'<div style="margin-bottom:14px"><div style="font-size:12px;color:var(--md-sys-color-on-surface-variant);margin-bottom:2px">'+label+'</div><code style="font-size:13px;word-break:break-all;display:block">'+val+'</code></div>';
+  const div=document.createElement("div"); div.className="card";
+  div.innerHTML=p("Noten",appCfg.data_path)+p("Wallet",appCfg.wallet_path)+p("Belohnungskonfig",appCfg.reward_config_path)+p("App-Konfiguration",appCfg.app_config_path)+p("Backups",appCfg.backup_path)+
     '<p style="font-size:13px;color:var(--md-sys-color-on-surface-variant);margin-top:8px">Pfade \u00fcber <code>DATA_DIR</code> in <code>.env</code> konfigurierbar.</p>';
   container.appendChild(div);
 }
@@ -221,30 +198,19 @@ async function renderPaths(container) {
 // Ladehinweise
 // ---------------------------------------------------------------------------
 async function renderLoading(container) {
-  container.innerHTML = backBar("Ladehinweise");
-  bindBack(container);
+  container.innerHTML = backBar("Ladehinweise"); bindBack(container);
   let appCfg;
   try { appCfg = await apiFetch("/api/app-config"); }
   catch(e) { container.innerHTML += errorBanner(e.message); return; }
-  const div = document.createElement("div");
-  div.className = "card";
-  div.innerHTML =
-    '<div style="display:flex;align-items:center;justify-content:space-between">' +
-      '<div>' +
-        '<div style="font-size:15px;font-weight:500">Verbose Loading</div>' +
-        '<div style="font-size:12px;color:var(--md-sys-color-on-surface-variant);margin-top:2px">' +
-          (appCfg.verbose_loading ? "Aktiv \u2013 Ladehinweise werden angezeigt" : "Deaktiviert \u2013 nur Warnungen") +
-        '</div>' +
-      '</div>' +
-      '<md-switch id="swVerbose" ' + (appCfg.verbose_loading ? "selected" : "") + '></md-switch>' +
-    '</div>';
+  const div=document.createElement("div"); div.className="card";
+  div.innerHTML='<div style="display:flex;align-items:center;justify-content:space-between">' +
+    '<div><div style="font-size:15px;font-weight:500">Verbose Loading</div>' +
+    '<div style="font-size:12px;color:var(--md-sys-color-on-surface-variant);margin-top:2px">'+(appCfg.verbose_loading?"Aktiv \u2013 Ladehinweise werden angezeigt":"Deaktiviert \u2013 nur Warnungen")+'</div></div>' +
+    '<md-switch id="swVerbose" '+(appCfg.verbose_loading?"selected":"")+'></md-switch></div>';
   container.appendChild(div);
-  div.querySelector("#swVerbose").addEventListener("change", async e => {
-    try {
-      await apiFetch("/api/app-config", { method: "PATCH", body: JSON.stringify({ verbose_loading: e.target.selected }) });
-      showSnackbar(e.target.selected ? "Ladehinweise aktiviert." : "Ladehinweise deaktiviert.");
-      await renderLoading(container);
-    } catch(err) { showSnackbar(err.message, "error"); }
+  div.querySelector("#swVerbose").addEventListener("change", async e=>{
+    try { await apiFetch("/api/app-config",{method:"PATCH",body:JSON.stringify({verbose_loading:e.target.selected})}); showSnackbar(e.target.selected?"Ladehinweise aktiviert.":"Ladehinweise deaktiviert."); await renderLoading(container); }
+    catch(err) { showSnackbar(err.message,"error"); }
   });
 }
 
@@ -252,10 +218,9 @@ async function renderLoading(container) {
 // Backup & Reset
 // ---------------------------------------------------------------------------
 function renderReset(container) {
-  container.innerHTML = backBar("Backup & Reset");
-  bindBack(container);
-  const div = document.createElement("div");
-  div.innerHTML =
+  container.innerHTML = backBar("Backup & Reset"); bindBack(container);
+  const div=document.createElement("div");
+  div.innerHTML=
     '<div class="card" style="margin-bottom:12px">' +
       '<div style="font-size:15px;font-weight:500;margin-bottom:8px">Backup</div>' +
       '<p style="font-size:13px;color:var(--md-sys-color-on-surface-variant);margin-bottom:12px">L\u00e4dt alle Datendateien als ZIP herunter.</p>' +
@@ -275,40 +240,22 @@ function renderReset(container) {
     '</div>';
   container.appendChild(div);
 
-  div.querySelector("#btnBackup").addEventListener("click", () => {
-    const a = Object.assign(document.createElement("a"), { href: "/api/backup" });
-    document.body.appendChild(a); a.click(); a.remove();
-    showSnackbar("Backup wird heruntergeladen\u2026");
+  div.querySelector("#btnBackup").addEventListener("click",()=>{ const a=Object.assign(document.createElement("a"),{href:"/api/backup"}); document.body.appendChild(a);a.click();a.remove(); showSnackbar("Backup wird heruntergeladen\u2026"); });
+  div.querySelector("#btnCleanup").addEventListener("click",()=>{
+    const dlg=openDialog("Alte Backups l\u00f6schen",'<p style="font-size:14px">Alle Backups au\u00dfer dem neuesten werden gel\u00f6scht.</p>',"L\u00f6schen",true);
+    dlg.addEventListener("close",async()=>{ if (dlg.returnValue!=="confirm") return; try { const r=await apiFetch("/api/backups/cleanup",{method:"POST"}); showSnackbar(r.message??"Gel\u00f6scht."); } catch(e){showSnackbar(e.message,"error");} });
   });
-  div.querySelector("#btnCleanup").addEventListener("click", () => {
-    const dlg = openDialog("Alte Backups l\u00f6schen",
-      '<p style="font-size:14px">Alle Backups au\u00dfer dem neuesten werden gel\u00f6scht.</p>', "L\u00f6schen", true);
-    dlg.addEventListener("close", async () => {
-      if (dlg.returnValue !== "confirm") return;
-      try { const r = await apiFetch("/api/backups/cleanup", { method: "POST" }); showSnackbar(r.message ?? "Alte Backups gel\u00f6scht."); }
-      catch(e) { showSnackbar(e.message, "error"); }
-    });
-  });
-
-  [
-    ["rGradeLog",    "grade_log",     "Noten\u00e4nderungen-Log leeren?"],
-    ["rRedemptions", "redemptions",   "Einl\u00f6sungen-Log leeren?\nDas Guthaben wird nicht ver\u00e4ndert."],
-    ["rBalance",     "balance",       "Guthaben auf 0 zur\u00fccksetzen?\nLogs bleiben erhalten."],
-    ["rRewardCfg",   "reward_config", "Belohnungskonfiguration auf Standardwerte zur\u00fccksetzen?"],
-    ["rAppCfg",      "app_config",    "App-Konfiguration auf Standardwerte zur\u00fccksetzen?"],
-  ].forEach(([id, action, msg]) => {
-    div.querySelector("#" + id).addEventListener("click", () => {
-      const dlg = openDialog("Best\u00e4tigung",
-        '<p style="font-size:14px">' + msg.replace(/\n/g, "<br>") + '</p>', "Zur\u00fccksetzen", true);
-      dlg.addEventListener("close", async () => {
-        if (dlg.returnValue !== "confirm") return;
-        try { await apiFetch("/api/reset", { method: "POST", body: JSON.stringify({ action }) }); showSnackbar("Zur\u00fcckgesetzt."); }
-        catch(e) { showSnackbar(e.message, "error"); }
-      });
+  [["rGradeLog","grade_log","Noten\u00e4nderungen-Log leeren?"],
+   ["rRedemptions","redemptions","Einl\u00f6sungen-Log leeren?\nDas Guthaben wird nicht ver\u00e4ndert."],
+   ["rBalance","balance","Guthaben auf 0 zur\u00fccksetzen?\nLogs bleiben erhalten."],
+   ["rRewardCfg","reward_config","Belohnungskonfiguration auf Standardwerte zur\u00fccksetzen?"],
+   ["rAppCfg","app_config","App-Konfiguration auf Standardwerte zur\u00fccksetzen?"],
+  ].forEach(([id,action,msg])=>{
+    div.querySelector("#"+id).addEventListener("click",()=>{
+      const dlg=openDialog("Best\u00e4tigung",'<p style="font-size:14px">'+msg.replace(/\n/g,"<br>")+'</p>',"Zur\u00fccksetzen",true);
+      dlg.addEventListener("close",async()=>{ if (dlg.returnValue!=="confirm") return; try { await apiFetch("/api/reset",{method:"POST",body:JSON.stringify({action})}); showSnackbar("Zur\u00fcckgesetzt."); } catch(e){showSnackbar(e.message,"error");} });
     });
   });
 }
 
-async function save(cfg) {
-  await apiFetch("/api/reward-config", { method: "POST", body: JSON.stringify(cfg) });
-}
+async function save(cfg) { await apiFetch("/api/reward-config",{method:"POST",body:JSON.stringify(cfg)}); }

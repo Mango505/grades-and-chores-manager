@@ -38,7 +38,6 @@
   --shape-corner-small:       8px;
   --shape-corner-extra-small: 4px;
 }
-
 @media (prefers-color-scheme: dark) {
   :root:not([data-theme="light"]) {
     --md-sys-color-primary:            #4dd8e8;
@@ -102,18 +101,14 @@
   --md-sys-color-surface-container-low: #f4f7f8;
 }
 
-/* =========================================================
-   Reset & Base
-   ========================================================= */
+/* Reset & Base */
 *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
 html { height: 100%; }
 body { min-height: 100%; font-family: "Roboto", sans-serif; font-size: 16px; background-color: var(--md-sys-color-background); color: var(--md-sys-color-on-background); display: flex; }
 a { text-decoration: none; color: inherit; }
 ul { list-style: none; }
 
-/* =========================================================
-   Navigation Drawer
-   ========================================================= */
+/* Nav Drawer */
 .nav-drawer { position: fixed; top: 0; left: 0; width: var(--nav-drawer-width); height: 100dvh; background-color: var(--md-sys-color-surface-container-low); display: flex; flex-direction: column; padding: 12px; z-index: 200; transition: transform 0.3s cubic-bezier(0.2, 0, 0, 1); }
 .nav-drawer__header { display: flex; align-items: center; gap: 12px; padding: 16px 16px 8px; }
 .nav-drawer__logo   { font-size: 28px; color: var(--md-sys-color-primary); font-variation-settings: 'FILL' 1; }
@@ -168,18 +163,12 @@ ul { list-style: none; }
 @keyframes skeleton-shimmer { 0% { background-position: -200% 0; } 100% { background-position: 200% 0; } }
 .skeleton { background: linear-gradient(90deg, var(--md-sys-color-surface-container) 25%, var(--md-sys-color-surface-container-high) 50%, var(--md-sys-color-surface-container) 75%); background-size: 200% 100%; animation: skeleton-shimmer 1.4s ease-in-out infinite; border-radius: var(--shape-corner-small); color: transparent; user-select: none; }
 .skeleton-card { background: var(--md-sys-color-surface-container-low); border-radius: var(--shape-corner-large); padding: 20px; box-shadow: var(--elevation-1); display: flex; flex-direction: column; gap: 12px; }
-.skeleton-line { height: 14px; }
-.skeleton-line--title  { height: 18px; width: 55%; }
-.skeleton-line--short  { width: 30%; }
-.skeleton-line--medium { width: 70%; }
-.skeleton-line--full   { width: 100%; }
+.skeleton-line { height: 14px; } .skeleton-line--title { height: 18px; width: 55%; } .skeleton-line--short { width: 30%; } .skeleton-line--medium { width: 70%; } .skeleton-line--full { width: 100%; }
 
 .drawer-backdrop { display: none; position: fixed; inset: 0; background: rgba(0,0,0,.32); z-index: 150; opacity: 0; transition: opacity .3s; pointer-events: none; }
 .drawer-backdrop.visible { opacity: 1; pointer-events: auto; }
 
-/* =========================================================
-   Responsive
-   ========================================================= */
+/* Responsive */
 @media (max-width: 768px) {
   body { display: block; overflow-y: auto; }
   .nav-drawer { transform: translateX(calc(-1 * var(--nav-drawer-width))); }
@@ -194,11 +183,7 @@ ul { list-style: none; }
   .ov-toolbar-right { display: none !important; }
 }
 @media (min-width: 769px) {
-  .top-app-bar { display: none; }
-  .bottom-nav  { display: none; }
-  .mob-fab     { display: none !important; }
-  .drawer-backdrop { display: none !important; }
-  .nav-drawer  { transform: translateX(0) !important; }
+  .top-app-bar { display: none; } .bottom-nav { display: none; } .mob-fab { display: none !important; } .drawer-backdrop { display: none !important; } .nav-drawer { transform: translateX(0) !important; }
 }
 
 /* Dialog */
@@ -226,69 +211,36 @@ ul { list-style: none; }
 :root[data-theme="dark"] .card, :root[data-theme="dark"] .skeleton-card { background: var(--md-sys-color-surface-container-high); }
 @media (prefers-color-scheme: dark) { :root:not([data-theme="light"]) .card, :root:not([data-theme="light"]) .skeleton-card { background: var(--md-sys-color-surface-container-high); } }
 
-/* Back bar */
 .back-bar { display: flex; align-items: center; gap: 4px; margin-bottom: 16px; }
 .back-bar__title { font-size: 18px; font-weight: 500; flex: 1; }
 .back-bar__actions { display: flex; gap: 4px; }
 
-/* Grade table */
 .grade-table { width: 100%; border-collapse: collapse; font-size: 14px; }
 .grade-table th { text-align: left; padding: 8px 10px; font-size: 12px; color: var(--md-sys-color-on-surface-variant); border-bottom: 1px solid var(--md-sys-color-outline-variant); white-space: nowrap; }
 .grade-table td { padding: 10px; border-bottom: 1px solid var(--md-sys-color-outline-variant); vertical-align: middle; }
 .grade-table tr:last-child td { border-bottom: none; }
 
 /* =========================================================
-   Native button classes – full CSS control, no shadow DOM
+   Native button classes
    ========================================================= */
-
-/* Text button (primary color, transparent bg) */
-.btn-text {
-  display: inline-flex; align-items: center; gap: 6px;
-  border: none; background: transparent; cursor: pointer;
-  font-size: 14px; font-weight: 500; font-family: inherit;
-  color: var(--md-sys-color-primary);
-  padding: 10px 16px; border-radius: var(--shape-corner-full);
-  transition: background .15s; white-space: nowrap;
-}
+.btn-text { display: inline-flex; align-items: center; gap: 6px; border: none; background: transparent; cursor: pointer; font-size: 14px; font-weight: 500; font-family: inherit; color: var(--md-sys-color-primary); padding: 10px 16px; border-radius: var(--shape-corner-full); transition: background .15s; white-space: nowrap; }
 .btn-text:hover { background: color-mix(in srgb, var(--md-sys-color-primary) 12%, transparent); }
 .btn-text .material-symbols-rounded { font-size: 18px; }
 
-/* Tonal button (secondary-container bg) */
-.btn-tonal {
-  display: inline-flex; align-items: center; gap: 8px;
-  border: none; cursor: pointer;
-  font-size: 14px; font-weight: 500; font-family: inherit;
-  color: var(--md-sys-color-on-secondary-container);
-  background: var(--md-sys-color-secondary-container);
-  padding: 10px 24px; border-radius: var(--shape-corner-full);
-  transition: opacity .15s; white-space: nowrap;
-}
+.btn-tonal { display: inline-flex; align-items: center; gap: 8px; border: none; cursor: pointer; font-size: 14px; font-weight: 500; font-family: inherit; color: var(--md-sys-color-on-secondary-container); background: var(--md-sys-color-secondary-container); padding: 10px 24px; border-radius: var(--shape-corner-full); transition: opacity .15s; white-space: nowrap; }
 .btn-tonal:hover { opacity: .88; }
 .btn-tonal .material-symbols-rounded { font-size: 18px; }
 
-/* Filled button (primary bg) */
-.btn-filled {
-  display: inline-flex; align-items: center; gap: 8px;
-  border: none; cursor: pointer;
-  font-size: 14px; font-weight: 500; font-family: inherit;
-  color: var(--md-sys-color-on-primary);
-  background: var(--md-sys-color-primary);
-  padding: 10px 24px; border-radius: var(--shape-corner-full);
-  transition: opacity .15s; white-space: nowrap;
-}
+.btn-filled { display: inline-flex; align-items: center; gap: 8px; border: none; cursor: pointer; font-size: 14px; font-weight: 500; font-family: inherit; color: var(--md-sys-color-on-primary); background: var(--md-sys-color-primary); padding: 10px 24px; border-radius: var(--shape-corner-full); transition: opacity .15s; white-space: nowrap; }
 .btn-filled:hover { opacity: .88; }
 .btn-filled .material-symbols-rounded { font-size: 18px; }
 
-/* M3 web component spacing tokens (kept for md-switch, md-checkbox etc.) */
+/* M3 web component tokens */
 md-filled-button, md-filled-tonal-button, md-text-button, md-outlined-button {
-  --md-text-button-leading-space:          16px;
-  --md-text-button-trailing-space:         16px;
-  --md-filled-button-leading-space:        24px;
-  --md-filled-button-trailing-space:       24px;
-  --md-filled-tonal-button-leading-space:  24px;
-  --md-filled-tonal-button-trailing-space: 24px;
-  --md-outlined-button-leading-space:      24px;
-  --md-outlined-button-trailing-space:     24px;
+  --md-text-button-leading-space: 16px; --md-text-button-trailing-space: 16px;
+  --md-filled-button-leading-space: 24px; --md-filled-button-trailing-space: 24px;
+  --md-filled-tonal-button-leading-space: 24px; --md-filled-tonal-button-trailing-space: 24px;
+  --md-outlined-button-leading-space: 24px; --md-outlined-button-trailing-space: 24px;
 }
 
 /* Settings */
@@ -299,19 +251,15 @@ md-filled-button, md-filled-tonal-button, md-text-button, md-outlined-button {
 :root[data-theme="dark"] .settings-menu-item { background: var(--md-sys-color-surface-container-high); }
 @media (prefers-color-scheme: dark) { :root:not([data-theme="light"]) .settings-menu-item { background: var(--md-sys-color-surface-container-high); } }
 
-/* Stat banner */
 .stat-banner-grid { display: grid; grid-template-columns: repeat(3, 1fr); gap: 12px; text-align: center; }
 @media (max-width: 480px) { .stat-banner-grid { gap: 8px; } .stat-banner-grid .stat-chip__value { font-size: 18px; } }
 
-/* Overview toolbar */
 .ov-toolbar { display: flex; gap: 8px; align-items: flex-start; flex-wrap: wrap; margin-bottom: 16px; }
 .ov-toolbar-left  { display: flex; flex-direction: column; gap: 6px; flex: 1; min-width: 0; }
 .ov-toolbar-right { display: flex; gap: 8px; align-items: center; flex-shrink: 0; }
 
-/* Subject grid */
 #subjectGrid { display: grid !important; grid-template-columns: repeat(auto-fill, minmax(300px, 1fr)) !important; gap: 10px !important; }
 
-/* Danger buttons */
 .btn-danger { display: inline-flex; align-items: center; gap: 8px; padding: 10px 20px; border-radius: var(--shape-corner-full); border: none; background: var(--md-sys-color-error); color: var(--md-sys-color-on-error); font-size: 14px; font-weight: 500; font-family: inherit; cursor: pointer; transition: opacity .15s; width: 100%; justify-content: flex-start; margin-bottom: 8px; }
 .btn-danger:hover { opacity: .88; }
 .btn-danger .material-symbols-rounded { font-size: 20px; }
@@ -325,20 +273,16 @@ md-filled-button, md-filled-tonal-button, md-text-button, md-outlined-button {
 .chip-input { display: flex; flex-wrap: wrap; gap: 5px; align-items: center; border: 1px solid var(--md-sys-color-outline); border-radius: var(--shape-corner-extra-small); padding: 6px 10px; background: var(--md-sys-color-surface); min-height: 48px; flex: 1; min-width: 200px; cursor: text; transition: border-color .15s; }
 .chip-input:focus-within { border-color: var(--md-sys-color-primary); border-width: 2px; padding: 5px 9px; }
 .chip-text-input { border: none; outline: none; background: transparent; font-size: 14px; font-family: inherit; color: var(--md-sys-color-on-surface); flex: 1; min-width: 80px; height: 30px; }
-
-/* M3 Filter Chip: 8px radius per spec */
 .filter-chip { display: inline-flex; align-items: center; gap: 3px; padding: 3px 8px 3px 10px; border-radius: 8px; border: 1px solid var(--md-sys-color-outline-variant); background: var(--md-sys-color-secondary-container); color: var(--md-sys-color-on-secondary-container); font-size: 13px; font-weight: 500; white-space: nowrap; }
 .chip-x { border: none; background: transparent; cursor: pointer; color: inherit; font-size: 16px; line-height: 1; padding: 0 2px; display: flex; align-items: center; opacity: .65; font-family: inherit; }
 .chip-x:hover { opacity: 1; }
-
-/* Filter mode row: reset first, then AND/OR */
 .filter-mode-row { display: flex; align-items: center; gap: 12px; flex-wrap: wrap; font-size: 13px; }
 .filter-mode-row label { display: flex; align-items: center; gap: 5px; cursor: pointer; color: var(--md-sys-color-on-surface-variant); white-space: nowrap; padding: 2px 4px; }
 .filter-mode-row input[type="radio"] { accent-color: var(--md-sys-color-primary); cursor: pointer; }
 .filter-clear-btn { background: transparent; border: 1px solid var(--md-sys-color-outline); border-radius: var(--shape-corner-full); padding: 4px 12px; cursor: pointer; font-size: 13px; font-family: inherit; color: var(--md-sys-color-on-surface-variant); transition: background .15s; white-space: nowrap; flex-shrink: 0; }
 .filter-clear-btn:hover { background: color-mix(in srgb, var(--md-sys-color-on-surface) 8%, transparent); }
 
-/* Overview mobile overflow menu */
+/* Overflow menu */
 .ov-overflow-menu { position: fixed; top: var(--top-app-bar-height); right: 4px; min-width: 200px; background: var(--md-sys-color-surface-container-highest); border-radius: var(--shape-corner-medium); box-shadow: var(--elevation-2); z-index: 500; overflow: hidden; animation: dlg-in .15s ease-out; }
 .ov-overflow-menu button { display: flex; align-items: center; gap: 12px; width: 100%; padding: 14px 16px; border: none; background: transparent; cursor: pointer; font-size: 14px; font-family: inherit; color: var(--md-sys-color-on-surface); text-align: left; transition: background .15s; }
 .ov-overflow-menu button:hover { background: color-mix(in srgb, var(--md-sys-color-on-surface) 8%, transparent); }
@@ -348,18 +292,26 @@ md-filled-button, md-filled-tonal-button, md-text-button, md-outlined-button {
    Stats layout
    ========================================================= */
 
-/* Tall section: true 2-col grid, cards start at same top edge */
+/* Wrapper: flex column with consistent 16px gap between all sections.
+   Replaces separate margin-bottom on st-grid-tall, eliminating the
+   extra space that appeared between the tall and short sections.     */
+.st-stats-wrapper {
+  display: flex;
+  flex-direction: column;
+  gap: 16px;
+}
+
+/* Tall section: true 2-col grid, cards top-aligned, NO margin-bottom
+   (gap comes from .st-stats-wrapper)                                 */
 .st-grid-tall {
   display: grid;
   grid-template-columns: 1fr 1fr;
   gap: 16px;
   align-items: start;
-  margin-bottom: 16px;
 }
 
-/* Short section: CSS columns (masonry-like).
-   Cards flow top-to-bottom within each column independently.
-   No row-based layout → no whitespace gaps between rows.      */
+/* Short section: CSS columns – each column fills top-to-bottom
+   independently, no row-based stretching, no whitespace gaps.       */
 .st-grid {
   columns: 2;
   column-gap: 16px;

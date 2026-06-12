@@ -26,22 +26,13 @@ app.config.from_object(Config)
 # ---------------------------------------------------------------------------
 
 def _load_all():
-    """
-    Load all data using Config paths as the source of truth.
-    The AppConfig stored in app_config.json may contain user-customised paths
-    (set via the CLI); we respect those for grades/wallet/reward-config.
-    Falls back to Config paths if the AppConfig file is missing or corrupt.
-    """
     app_config, status = load_app_config(Config.APP_CONFIG_PATH)
 
-    # If the stored AppConfig has relative paths, resolve them absolute
-    # relative to Config.DATA_DIR so CLI-generated configs keep working.
     def _resolve(p: str) -> str:
         if os.path.isabs(p):
             return p
         return os.path.join(Config.DATA_DIR, os.path.basename(p))
 
-    # If config was missing/corrupt fall back to Config-level paths
     if status != LoadStatus.OK:
         app_config.data_path          = Config.GRADES_PATH
         app_config.wallet_path        = Config.WALLET_PATH
@@ -94,7 +85,6 @@ def get_subjects():
 
 @app.route("/api/subjects", methods=["POST"])
 def create_subject():
-    """Body: { "name": str }"""
     data = request.get_json(force=True)
     name = (data.get("name") or "").strip()
     if not name:
@@ -120,7 +110,6 @@ def delete_subject(subject_name):
 
 @app.route("/api/subjects/reorder", methods=["PUT"])
 def reorder_subjects():
-    """Body: { "order": ["name1", "name2", ...] }"""
     data  = request.get_json(force=True)
     order = data.get("order", [])
     app_config, subjects, wallet, reward_config = _load_all()
@@ -138,7 +127,10 @@ def reorder_subjects():
 
 @app.route("/api/subjects/<string:subject_name>/grades", methods=["POST"])
 def add_grade(subject_name):
-    """Body: { "value": float, "weight"?: float, "labels"?: [str] }"""
+    """
+    Body: { "value": float, "weight"?: float, "labels"?: [str], "book_reward"?: bool }
+    book_reward defaults to true. Set to false to skip wallet credit for this grade.
+    """
     data = request.get_json(force=True)
     app_config, subjects, wallet, reward_config = _load_all()
     idx = _subject_index(subjects, subject_name)
@@ -155,19 +147,29 @@ def add_grade(subject_name):
     if not grade.is_valid():
         abort(400, "value must be 1–6 and weight > 0")
 
+    # book_reward: whether to credit wallet for this grade (default True)
+    book_reward = bool(data.get("book_reward", True))
+
     subjects[idx].add_grade(grade)
-    earned = reward_config.units_for_points(reward_config.points_for_grade(value)) \
-             if reward_config.enabled else None
-    if reward_config.enabled and earned:
-        wallet.balance += earned
-    wallet.log_grade_event("+", subject_name, value, weight, labels, value_delta=earned)
+
+    earned = None
+    if reward_config.enabled:
+        pts = reward_config.points_for_grade(value)
+        if pts:
+            earned = reward_config.units_for_points(pts)
+            if book_reward:
+                wallet.balance += earned
+
+    wallet.log_grade_event(
+        "+", subject_name, value, weight, labels,
+        value_delta=earned if book_reward else None
+    )
     _save_all(app_config, subjects, wallet, reward_config)
     return jsonify(grade.to_dict()), 201
 
 
 @app.route("/api/subjects/<string:subject_name>/grades/<int:grade_index>", methods=["PUT"])
 def edit_grade(subject_name, grade_index):
-    """Body: { "value"?, "weight"?, "labels"? } – omit to keep current"""
     data = request.get_json(force=True)
     app_config, subjects, wallet, reward_config = _load_all()
     idx = _subject_index(subjects, subject_name)
@@ -201,7 +203,6 @@ def edit_grade(subject_name, grade_index):
 
 @app.route("/api/subjects/<string:subject_name>/grades/<int:grade_index>", methods=["DELETE"])
 def delete_grade(subject_name, grade_index):
-    """Query param: adjust_wallet=1 to reverse reward balance."""
     app_config, subjects, wallet, reward_config = _load_all()
     idx = _subject_index(subjects, subject_name)
     if idx == -1:
@@ -239,7 +240,6 @@ def get_wallet():
 
 @app.route("/api/wallet/redeem", methods=["POST"])
 def redeem():
-    """Body: { "cost": float, "description"?: str }"""
     data = request.get_json(force=True)
     app_config, subjects, wallet, reward_config = _load_all()
     if not reward_config.enabled:
@@ -269,7 +269,6 @@ def get_reward_config():
 
 @app.route("/api/reward-config", methods=["POST"])
 def update_reward_config():
-    """Replace the full reward configuration."""
     data = request.get_json(force=True)
     app_config, subjects, wallet, _ = _load_all()
     try:
@@ -376,10 +375,11 @@ def download_backup():
 
 
 # ---------------------------------------------------------------------------
+# API – Startup status
+# ---------------------------------------------------------------------------
 
 @app.route("/api/startup-status", methods=["GET"])
 def startup_status():
-    """Return load status for all four data files."""
     from storage import (load_app_config as _lac, load_subjects as _ls,
                          load_wallet as _lw, load_reward_config as _lr)
 
@@ -388,9 +388,9 @@ def startup_status():
     def _res(p):
         return p if os.path.isabs(p) else os.path.join(Config.DATA_DIR, os.path.basename(p))
 
-    data_path = _res(app_config_obj.data_path)
+    data_path   = _res(app_config_obj.data_path)
     wallet_path = _res(app_config_obj.wallet_path)
-    rc_path = _res(app_config_obj.reward_config_path)
+    rc_path     = _res(app_config_obj.reward_config_path)
 
     _, s_st  = _ls(data_path)
     _, w_st  = _lw(wallet_path)
@@ -404,17 +404,12 @@ def startup_status():
     ]})
 
 
-
 # ---------------------------------------------------------------------------
-# API – Reset actions
+# API – Reset
 # ---------------------------------------------------------------------------
 
 @app.route("/api/reset", methods=["POST"])
 def reset_data():
-    """
-    Reset specific data. Body: { "action": str }
-    Actions: "grade_log" | "redemptions" | "balance" | "app_config" | "reward_config"
-    """
     data   = request.get_json(force=True)
     action = data.get("action", "")
     app_config, subjects, wallet, reward_config = _load_all()
@@ -447,21 +442,20 @@ def reset_data():
 
 @app.route("/api/app-config", methods=["PATCH"])
 def update_app_config():
-    """Partial update of app config. Currently supports: verbose_loading (bool)."""
     data = request.get_json(force=True)
     app_config, subjects, wallet, reward_config = _load_all()
-
     if "verbose_loading" in data:
         app_config.verbose_loading = bool(data["verbose_loading"])
-
     _save_all(app_config, subjects, wallet, reward_config)
     return jsonify(app_config.to_dict())
 
 
+# ---------------------------------------------------------------------------
+# API – Backup cleanup
+# ---------------------------------------------------------------------------
 
 @app.route("/api/backups/cleanup", methods=["POST"])
 def cleanup_backups():
-    """Delete all backup directories except the newest one."""
     import shutil
     app_config, _, _, _ = _load_all()
     backup_path = app_config.backup_path
@@ -477,7 +471,7 @@ def cleanup_backups():
     if len(entries) <= 1:
         return jsonify({"message": "Nur ein Backup vorhanden, nichts zu löschen.", "deleted": 0})
 
-    to_delete = entries[:-1]  # keep the newest
+    to_delete = entries[:-1]
     failed, deleted = [], 0
     for e in to_delete:
         try:
@@ -490,7 +484,6 @@ def cleanup_backups():
     if failed:
         msg += f" Fehlgeschlagen: {', '.join(failed)}"
     return jsonify({"message": msg, "deleted": deleted, "failed": failed})
-
 
 
 if __name__ == "__main__":
