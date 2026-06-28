@@ -216,6 +216,126 @@ class AppConfig:
         )
 
 
+class TaskTemplate:
+    def __init__(self, name: str, reward: float, period: str = "once",
+                 active: bool = True, last_completed: str | None = None,
+                 task_id: int | None = None):
+        self.id = task_id
+        self.name = name
+        self.reward = reward
+        self.period = period      # "once" | "daily" | "weekly" | "monthly"
+        self.active = active
+        self.last_completed = last_completed  # ISO date string or None
+
+    def is_available(self) -> bool:
+        from datetime import date, datetime
+        if not self.active:
+            return False
+        if self.period == "once":
+            return self.last_completed is None
+        if not self.last_completed:
+            return True
+        try:
+            last = datetime.strptime(self.last_completed, "%Y-%m-%d").date()
+        except (ValueError, TypeError):
+            return True
+        today = date.today()
+        if self.period == "daily":
+            return last < today
+        if self.period == "weekly":
+            return last.isocalendar()[1] != today.isocalendar()[1] or last.year != today.year
+        if self.period == "monthly":
+            return last.month != today.month or last.year != today.year
+        return True
+
+    def mark_completed(self) -> None:
+        from datetime import date
+        self.last_completed = date.today().isoformat()
+        if self.period == "once":
+            self.active = False
+
+    def to_dict(self) -> dict:
+        return {
+            "id": self.id,
+            "name": self.name,
+            "reward": self.reward,
+            "period": self.period,
+            "active": self.active,
+            "last_completed": self.last_completed,
+        }
+
+    @classmethod
+    def from_dict(cls, data: dict) -> "TaskTemplate":
+        return cls(
+            task_id=data.get("id"),
+            name=data["name"],
+            reward=data["reward"],
+            period=data.get("period", "once"),
+            active=data.get("active", True),
+            last_completed=data.get("last_completed"),
+        )
+
+
+class TaskCompletion:
+    def __init__(self, task_id: int, task_name: str, reward: float,
+                 completed_at: str | None = None, comp_id: int | None = None):
+        self.id = comp_id
+        self.task_id = task_id
+        self.task_name = task_name
+        self.reward = reward
+        self.completed_at = completed_at or datetime.now().strftime("%d.%m.%Y %H:%M")
+
+    def to_dict(self) -> dict:
+        return {
+            "id": self.id,
+            "task_id": self.task_id,
+            "task_name": self.task_name,
+            "reward": self.reward,
+            "completed_at": self.completed_at,
+        }
+
+    @classmethod
+    def from_dict(cls, data: dict) -> "TaskCompletion":
+        return cls(
+            comp_id=data.get("id"),
+            task_id=data["task_id"],
+            task_name=data["task_name"],
+            reward=data["reward"],
+            completed_at=data.get("completed_at"),
+        )
+
+
+class TasksData:
+    """Container for task templates + completion history (persisted as one JSON file)."""
+    def __init__(self, templates: list[TaskTemplate] | None = None,
+                 completions: list[TaskCompletion] | None = None):
+        self.templates = templates if templates is not None else []
+        self.completions = completions if completions is not None else []
+
+    def next_template_id(self) -> int:
+        if not self.templates:
+            return 1
+        return max(t.id or 0 for t in self.templates) + 1
+
+    def next_completion_id(self) -> int:
+        if not self.completions:
+            return 1
+        return max(c.id or 0 for c in self.completions) + 1
+
+    def to_dict(self) -> dict:
+        return {
+            "templates": [t.to_dict() for t in self.templates],
+            "completions": [c.to_dict() for c in self.completions],
+        }
+
+    @classmethod
+    def from_dict(cls, data: dict) -> "TasksData":
+        return cls(
+            templates=[TaskTemplate.from_dict(t) for t in data.get("templates", [])],
+            completions=[TaskCompletion.from_dict(c) for c in data.get("completions", [])],
+        )
+
+
 class LoadStatus(Enum):
     OK = "ok"
     MISSING = "missing"

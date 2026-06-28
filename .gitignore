@@ -249,3 +249,6 @@ home/
 
 ### Raspberry Pi Stuff ###
 .lgd-nfy0
+
+### OpenCode ###
+.opencode/

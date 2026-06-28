@@ -1,13 +1,19 @@
-# grade-calculator
+# grades-and-chores-manager
 
-![Version](https://img.shields.io/badge/version-v2.0.1-brightgreen)
+![Version](https://img.shields.io/badge/version-v3.0.0-brightgreen)
 ![Python](https://img.shields.io/badge/python-3.10+-blue)
 ![Flask](https://img.shields.io/badge/flask-3.0+-lightgrey)
 ![Status](https://img.shields.io/badge/status-web%20interface-blue)
 
-A grade manager for the **Bavarian grading system (1–6)** with an integrated reward system — built so I have a single place to track grades, weighted averages, and a reward balance across all devices.
+A combined **Notenrechner + Taschengeld-Manager** — track school grades (Bavarian 1–6) and household chores in one place, with a shared reward wallet.
 
-> **v2.0.0** replaces the CLI with a full web interface. The original CLI (`main.py`) is preserved on the `cli` branch. The underlying data models and storage layer (`models.py`, `storage.py`) are shared and unchanged.
+Two modes (switcher in the header):  
+- **Notenrechner** — grades, weighted averages, statistics  
+- **Taschengeld** — task/chore management with daily/weekly/monthly recurring tasks
+
+Both feed into the same wallet for a unified reward system.
+
+> **v3.0.0** adds the Taschengeld (chores) system with a mode switcher. The original grade calculator is preserved as the "Notenrechner" mode.
 
 ---
 
@@ -29,7 +35,7 @@ A grade manager for the **Bavarian grading system (1–6)** with an integrated r
 
 ## Introduction 🚀
 
-**grade-calculator** is a self-hosted web application for managing school grades with weighted averages, label-based filtering, and an optional reward system. The reward system lets you define a payout per grade — in euros, a custom unit, or raw points — so that earning good grades automatically updates a tracked balance that can later be redeemed.
+**grades-and-chores-manager** is a self-hosted web application combining grade tracking (Notenrechner) with a chore-based allowance system (Taschengeld). Grades and chores both feed into a shared reward wallet, giving you a single place to manage school performance and household tasks.
 
 Everything is stored locally in JSON files on the server. The web interface is a Material Design 3 SPA accessible from any browser on the same network, and is installable as a PWA on mobile.
 
@@ -86,8 +92,8 @@ Everything is stored locally in JSON files on the server. The web interface is a
 ## Setup ⚙️
 
 ```bash
-git clone https://github.com/Mango505/grade-calculator.git
-cd grade-calculator
+git clone https://github.com/Mango505/grades-and-chores-manager.git
+cd grades-and-chores-manager
 pip install -r requirements.txt
 ```
 
@@ -165,7 +171,7 @@ The service worker caches the app shell (JS, CSS, HTML) so the UI loads even whe
 ## Architecture 🏗️
 
 ```
-grade-calculator/
+grades-and-chores-manager/
 ├── app.py              # Flask server, all API routes
 ├── config.py           # Path resolution, env vars
 ├── models.py           # Grade, Subject, Wallet, RewardConfig, AppConfig
@@ -269,4 +275,4 @@ The CLI and web app share the same data format — you can switch between them b
 ## License ⚖️
 
 This project is licensed under the terms of the **MIT** license.
-See [LICENSE](https://github.com/Mango505/grade-calculator/blob/main/LICENSE) for details.
+See [LICENSE](https://github.com/Mango505/grades-and-chores-manager/blob/main/LICENSE) for details.

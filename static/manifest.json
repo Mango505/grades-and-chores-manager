@@ -1,7 +1,7 @@
 {
-  "name": "Notenrechner",
-  "short_name": "Noten",
-  "description": "Notenverwaltung im bayerischen Notensystem (1–6)",
+  "name": "Noten und Taschengeld-Manager",
+  "short_name": "NT-Manager",
+  "description": "Notenverwaltung und Taschengeld-Manager im bayerischen Notensystem (1–6)",
   "start_url": "/",
   "display": "standalone",
   "orientation": "portrait-primary",

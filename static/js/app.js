@@ -1,12 +1,40 @@
 /**
- * app.js – Shell: router, dark mode, FAB, snackbar, skeletons
+ * app.js – Shell: router, mode switcher, dark mode, FAB, snackbar, skeletons
  */
+
+const MODES = {
+  grades: {
+    label: "Notenrechner",
+    icon: "school",
+    defaultPage: "overview",
+    pages: [
+      { key: "overview", label: "Übersicht", icon: "bar_chart" },
+      { key: "wallet",   label: "Konto & Verlauf", icon: "account_balance_wallet" },
+      { key: "stats",    label: "Statistiken", icon: "insights" },
+      { key: "settings", label: "Einstellungen", icon: "settings" },
+    ],
+  },
+  chores: {
+    label: "Taschengeld",
+    icon: "payments",
+    defaultPage: "tasks",
+    pages: [
+      { key: "tasks",    label: "Aufgaben", icon: "checklist" },
+      { key: "wallet",   label: "Konto & Verlauf", icon: "account_balance_wallet" },
+      { key: "settings", label: "Einstellungen", icon: "settings" },
+    ],
+  },
+};
+
+const MODE_KEY = "nt-mode";
+let currentMode = localStorage.getItem(MODE_KEY) || "grades";
 
 const PAGES = {
   overview: { title: "Übersicht",      loader: () => import("/static/js/pages/overview.js") },
   wallet:   { title: "Konto & Verlauf", loader: () => import("/static/js/pages/wallet.js")   },
   stats:    { title: "Statistiken",    loader: () => import("/static/js/pages/stats.js")    },
   settings: { title: "Einstellungen",  loader: () => import("/static/js/pages/settings.js") },
+  tasks:    { title: "Aufgaben",       loader: () => import("/static/js/pages/tasks.js")    },
 };
 const DEFAULT_PAGE = "overview";
 
@@ -14,20 +42,90 @@ const navDrawer      = document.getElementById("navDrawer");
 const drawerBackdrop = document.getElementById("drawerBackdrop");
 const pageContainer  = document.getElementById("pageContainer");
 const pageTitle      = document.getElementById("pageTitle");
-const allNavItems    = document.querySelectorAll("[data-page]");
 const navFab         = document.getElementById("navFab");
 const mobFab         = document.getElementById("mobFab");
+
+// ---------------------------------------------------------------------------
+// Mode switcher
+// ---------------------------------------------------------------------------
+export function getCurrentMode() {
+  return currentMode;
+}
+
+function switchMode(mode) {
+  if (!(mode in MODES) || mode === currentMode) return;
+  currentMode = mode;
+  localStorage.setItem(MODE_KEY, mode);
+  renderNavItems();
+  updateModeSwitcherUI();
+  closeModeDropdown();
+  navigateTo(MODES[mode].defaultPage);
+}
+
+function renderNavItems() {
+  const mode = MODES[currentMode];
+
+  const drawerList = document.getElementById("navDrawerList");
+  drawerList.innerHTML = mode.pages.map(p =>
+    '<li><a href="#' + p.key + '" class="nav-item" data-page="' + p.key + '">' +
+      '<span class="material-symbols-rounded">' + p.icon + '</span> ' + p.label +
+    '</a></li>'
+  ).join("");
+
+  const bottomNav = document.getElementById("bottomNav");
+  bottomNav.innerHTML = mode.pages.map(p =>
+    '<a href="#' + p.key + '" class="bottom-nav__item" data-page="' + p.key + '">' +
+      '<span class="material-symbols-rounded">' + p.icon + '</span>' +
+      '<span>' + p.label + '</span>' +
+    '</a>'
+  ).join("");
+}
+
+function updateModeSwitcherUI() {
+  const mode = MODES[currentMode];
+  const iconEl = document.getElementById("drawerModeIcon");
+  const titleEl = document.getElementById("drawerModeTitle");
+  const topIconEl = document.getElementById("topModeIcon");
+  if (iconEl) iconEl.textContent = mode.icon;
+  if (titleEl) titleEl.textContent = mode.label;
+  if (topIconEl) topIconEl.textContent = mode.icon;
+}
+
+function toggleModeDropdown() {
+  const overlay = document.getElementById("modeSwitcherOverlay");
+  const hidden = overlay.hasAttribute("hidden");
+  if (hidden) {
+    overlay.removeAttribute("hidden");
+    setTimeout(() => {
+      document.addEventListener("click", closeModeDropdown, { once: true });
+    }, 0);
+  } else {
+    overlay.setAttribute("hidden", "");
+  }
+}
+
+function closeModeDropdown() {
+  const overlay = document.getElementById("modeSwitcherOverlay");
+  if (overlay) overlay.setAttribute("hidden", "");
+}
+
+document.getElementById("drawerSwitcherBtn")?.addEventListener("click", toggleModeDropdown);
+document.getElementById("modeSwitcherTop")?.addEventListener("click", toggleModeDropdown);
+
+document.querySelectorAll("[data-mode]").forEach(btn => {
+  btn.addEventListener("click", () => switchMode(btn.dataset.mode));
+});
 
 // ---------------------------------------------------------------------------
 // Router
 // ---------------------------------------------------------------------------
 function currentPageKey() {
   const hash = location.hash.replace("#", "").trim();
-  return hash in PAGES ? hash : DEFAULT_PAGE;
+  return hash in PAGES ? hash : MODES[currentMode].defaultPage;
 }
 
 export function navigateTo(key) {
-  if (!(key in PAGES)) key = DEFAULT_PAGE;
+  if (!(key in PAGES)) key = MODES[currentMode].defaultPage;
   history.pushState(null, "", "#" + key);
   renderPage(key);
 }
@@ -40,7 +138,6 @@ async function renderPage(key) {
   updateActiveNav(key);
   if (pageTitle) pageTitle.textContent = page.title;
 
-  // Clean up any injected page-specific top-bar elements (e.g. overview overflow menu)
   document.getElementById("ov-overflow-btn")?.remove();
   document.getElementById("ov-overflow-menu")?.remove();
 
@@ -67,7 +164,7 @@ async function renderPage(key) {
 }
 
 function updateActiveNav(key) {
-  allNavItems.forEach(item => {
+  document.querySelectorAll("[data-page]").forEach(item => {
     const active = item.dataset.page === key;
     item.classList.toggle("nav-item--active",         active && !!item.closest(".nav-drawer"));
     item.classList.toggle("bottom-nav__item--active", active && !!item.closest(".bottom-nav"));
@@ -85,12 +182,13 @@ function closeDrawer() {
 drawerBackdrop?.addEventListener("click", closeDrawer);
 document.addEventListener("keydown", e => { if (e.key === "Escape") closeDrawer(); });
 
-allNavItems.forEach(item => {
-  item.addEventListener("click", e => {
-    e.preventDefault();
-    closeDrawer();
-    navigateTo(item.dataset.page);
-  });
+// Nav click delegation
+document.addEventListener("click", e => {
+  const navItem = e.target.closest("[data-page]");
+  if (!navItem) return;
+  e.preventDefault();
+  closeDrawer();
+  navigateTo(navItem.dataset.page);
 });
 
 window.addEventListener("popstate", () => renderPage(currentPageKey()));
@@ -281,6 +379,8 @@ export function skeletonGrid(n = 3, lineClasses) {
 // ---------------------------------------------------------------------------
 // Boot
 // ---------------------------------------------------------------------------
+renderNavItems();
+updateModeSwitcherUI();
 renderPage(currentPageKey());
 checkStartupStatus();
 setTimeout(() => {

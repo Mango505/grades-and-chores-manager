@@ -42,4 +42,5 @@ class Config:
     GRADES_PATH        = _abs("GRADES_PATH",        "data", "grades.json")
     WALLET_PATH        = _abs("WALLET_PATH",        "data", "wallet.json")
     REWARD_CONFIG_PATH = _abs("REWARD_CONFIG_PATH", "data", "reward_config.json")
+    TASKS_PATH         = _abs("TASKS_PATH",         "data", "tasks.json")
     BACKUP_PATH        = _abs("BACKUP_PATH",        "data", "backups")

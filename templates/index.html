@@ -3,7 +3,7 @@
 <head>
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-  <title>Notenrechner</title>
+  <title>Noten und Taschengeld-Manager</title>
 
   <script type="importmap">
     { "imports": { "@material/web/": "https://esm.run/@material/web/" } }
@@ -29,9 +29,12 @@
        DESKTOP: Navigation Drawer
        ===================================================================== -->
   <nav class="nav-drawer" id="navDrawer" aria-label="Hauptnavigation">
-    <div class="nav-drawer__header">
-      <span class="material-symbols-rounded nav-drawer__logo">school</span>
-      <span class="nav-drawer__title">Notenrechner</span>
+    <div class="nav-drawer__header" id="drawerModeSwitcher">
+      <span class="material-symbols-rounded nav-drawer__logo" id="drawerModeIcon">school</span>
+      <span class="nav-drawer__title" id="drawerModeTitle">Notenrechner</span>
+      <button class="icon-btn nav-drawer__switcher" id="drawerSwitcherBtn" aria-label="Bereich wechseln">
+        <span class="material-symbols-rounded">expand_more</span>
+      </button>
     </div>
 
     <!-- Extended FAB – primary action of the current page -->
@@ -40,20 +43,7 @@
       <span id="navFabLabel"></span>
     </button>
 
-    <ul class="nav-drawer__list" role="list">
-      <li><a href="#overview"  class="nav-item nav-item--active" data-page="overview">
-        <span class="material-symbols-rounded">bar_chart</span> Übersicht
-      </a></li>
-      <li><a href="#wallet"    class="nav-item" data-page="wallet">
-        <span class="material-symbols-rounded">account_balance_wallet</span> Konto &amp; Verlauf
-      </a></li>
-      <li><a href="#stats"     class="nav-item" data-page="stats">
-        <span class="material-symbols-rounded">insights</span> Statistiken
-      </a></li>
-      <li><a href="#settings"  class="nav-item" data-page="settings">
-        <span class="material-symbols-rounded">settings</span> Einstellungen
-      </a></li>
-    </ul>
+    <ul class="nav-drawer__list" id="navDrawerList" role="list"></ul>
 
     <div class="nav-drawer__footer">
       <button class="theme-toggle" id="themeToggle" aria-label="Design wechseln">
@@ -70,7 +60,11 @@
 
     <!-- Top app bar – mobile only, no hamburger, no shadow -->
     <header class="top-app-bar" id="topAppBar">
-      <span class="top-app-bar__title" id="pageTitle">Übersicht</span>
+      <div class="top-app-bar__title-area" id="modeSwitcherTop">
+        <span class="material-symbols-rounded top-app-bar__icon" id="topModeIcon">school</span>
+        <span class="top-app-bar__title" id="pageTitle">Übersicht</span>
+        <span class="material-symbols-rounded top-app-bar__chevron" id="topSwitcherChevron">expand_more</span>
+      </div>
       <div class="top-app-bar__actions">
         <button class="icon-btn" id="themeToggleMobile" aria-label="Design wechseln">
           <span class="material-symbols-rounded" id="themeIconMobile">dark_mode</span>
@@ -89,20 +83,7 @@
   <!-- =====================================================================
        MOBILE: Bottom Navigation
        ===================================================================== -->
-  <nav class="bottom-nav" aria-label="Hauptnavigation">
-    <a href="#overview"  class="bottom-nav__item bottom-nav__item--active" data-page="overview">
-      <span class="material-symbols-rounded">bar_chart</span><span>Übersicht</span>
-    </a>
-    <a href="#wallet"    class="bottom-nav__item" data-page="wallet">
-      <span class="material-symbols-rounded">account_balance_wallet</span><span>Konto</span>
-    </a>
-    <a href="#stats"     class="bottom-nav__item" data-page="stats">
-      <span class="material-symbols-rounded">insights</span><span>Statistiken</span>
-    </a>
-    <a href="#settings"  class="bottom-nav__item" data-page="settings">
-      <span class="material-symbols-rounded">settings</span><span>Mehr</span>
-    </a>
-  </nav>
+  <nav class="bottom-nav" id="bottomNav" aria-label="Hauptnavigation"></nav>
 
   <!-- Mobile floating FAB -->
   <button class="mob-fab" id="mobFab" hidden aria-label="Primäre Aktion">
@@ -111,6 +92,26 @@
 
   <!-- Drawer backdrop (mobile only) -->
   <div class="drawer-backdrop" id="drawerBackdrop"></div>
+
+  <!-- Mode switcher dropdown -->
+  <div class="mode-switcher-overlay" id="modeSwitcherOverlay" hidden>
+    <div class="mode-switcher-menu" id="modeSwitcherMenu" role="menu">
+      <button class="mode-switcher-item" data-mode="grades" role="menuitem">
+        <span class="material-symbols-rounded">school</span>
+        <div>
+          <div class="mode-switcher-item__title">Notenrechner</div>
+          <div class="mode-switcher-item__sub">Noten &amp; Belohnungen</div>
+        </div>
+      </button>
+      <button class="mode-switcher-item" data-mode="chores" role="menuitem">
+        <span class="material-symbols-rounded">payments</span>
+        <div>
+          <div class="mode-switcher-item__title">Taschengeld</div>
+          <div class="mode-switcher-item__sub">Aufgaben &amp; Haushalt</div>
+        </div>
+      </button>
+    </div>
+  </div>
 
   <script src="/static/js/app.js" type="module"></script>
   <script>

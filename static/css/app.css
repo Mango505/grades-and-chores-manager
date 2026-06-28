@@ -330,3 +330,140 @@ md-filled-button, md-filled-tonal-button, md-text-button, md-outlined-button {
   .st-grid-tall { grid-template-columns: 1fr; }
   .st-grid      { columns: 1; }
 }
+
+/* ------------------------------------------------------------------ */
+/* Mode switcher (dropdown)                                           */
+/* ------------------------------------------------------------------ */
+.mode-switcher-overlay {
+  position: fixed;
+  inset: 0;
+  z-index: 3000;
+  display: flex;
+  align-items: flex-start;
+  justify-content: center;
+  padding-top: 12px;
+}
+
+.mode-switcher-menu {
+  background: var(--md-sys-color-surface-container-high);
+  border-radius: var(--shape-corner-large);
+  box-shadow: var(--elevation-2);
+  padding: 8px;
+  min-width: 240px;
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+  margin-left: 56px;
+}
+
+.mode-switcher-item {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  padding: 12px 16px;
+  border: none;
+  border-radius: var(--shape-corner-medium);
+  background: transparent;
+  color: var(--md-sys-color-on-surface);
+  font-size: 14px;
+  font-family: inherit;
+  cursor: pointer;
+  text-align: left;
+  width: 100%;
+}
+
+.mode-switcher-item:hover {
+  background: var(--md-sys-color-surface-container-highest);
+}
+
+.mode-switcher-item:focus-visible {
+  outline: 2px solid var(--md-sys-color-primary);
+  outline-offset: -2px;
+}
+
+.mode-switcher-item .material-symbols-rounded {
+  font-size: 24px;
+  color: var(--md-sys-color-primary);
+}
+
+.mode-switcher-item__title {
+  font-size: 15px;
+  font-weight: 500;
+}
+
+.mode-switcher-item__sub {
+  font-size: 12px;
+  color: var(--md-sys-color-on-surface-variant);
+}
+
+/* Position switcher menu for top bar (mobile) */
+@media (max-width: 699px) {
+  .mode-switcher-menu {
+    margin-left: 0;
+    margin-top: 4px;
+  }
+}
+
+/* ------------------------------------------------------------------ */
+/* Top bar with mode switcher                                         */
+/* ------------------------------------------------------------------ */
+.top-app-bar__title-area {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  cursor: pointer;
+  padding: 4px 8px;
+  border-radius: var(--shape-corner-small);
+  -webkit-tap-highlight-color: transparent;
+  user-select: none;
+}
+
+.top-app-bar__title-area:hover {
+  background: var(--md-sys-color-surface-container);
+}
+
+.top-app-bar__icon,
+.top-app-bar__chevron {
+  font-size: 20px;
+  color: var(--md-sys-color-on-surface);
+}
+
+/* ------------------------------------------------------------------ */
+/* Nav drawer switcher button                                         */
+/* ------------------------------------------------------------------ */
+.nav-drawer__header {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  padding: 20px 24px 4px;
+}
+
+.nav-drawer__logo {
+  font-size: 28px;
+  color: var(--md-sys-color-primary);
+}
+
+.nav-drawer__title {
+  flex: 1;
+  font-size: 18px;
+  font-weight: 600;
+}
+
+.nav-drawer__switcher {
+  color: var(--md-sys-color-on-surface-variant);
+}
+
+/* ------------------------------------------------------------------ */
+/* Task cards                                                         */
+/* ------------------------------------------------------------------ */
+.task-card {
+  transition: background 0.15s;
+}
+
+.task-card:hover {
+  background: var(--md-sys-color-surface-container);
+}
+
+.task-card .btn-filled {
+  min-width: 0;
+}

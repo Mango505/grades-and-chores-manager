@@ -8,26 +8,30 @@ import { statChip, emptyState, errorBanner, openDialog, injectComponentStyles } 
 const PREVIEW = 10;
 let showAllR = false;
 let showAllG = false;
+let showAllT = false;
 
 export default async function render(container) {
   injectComponentStyles();
   showAllR = false;
   showAllG = false;
+  showAllT = false;
   await load(container);
 }
 
 async function load(container) {
-  let wallet, rc;
+  let wallet, rc, tasks;
   try {
-    [wallet, rc] = await Promise.all([
+    [wallet, rc, tasks] = await Promise.all([
       apiFetch("/api/wallet"),
       apiFetch("/api/reward-config"),
+      apiFetch("/api/tasks"),
     ]);
   } catch(e) { container.innerHTML = errorBanner(e.message); return; }
 
+  const taskCompletions = (tasks && tasks.completions) || [];
+
   if (!rc.enabled) {
     clearPrimaryAction();
-    // Rewards disabled: show info banner + grade log (no balance/redemptions)
     container.innerHTML =
       '<div class="card" style="display:flex;align-items:center;gap:12px;padding:14px 16px;margin-bottom:20px;' +
       'background:var(--md-sys-color-surface-container)">' +
@@ -40,18 +44,22 @@ async function load(container) {
           return [sym, e.date||"", e.subject||"", String(e.value), "\u2014"];
         },
         ["Aktion","Datum","Fach","Note","\u0394"]
-      );
+      ) +
+      taskSection(taskCompletions, showAllT);
 
     container.querySelector("#btnExpandG")?.addEventListener("click",   () => { showAllG = true;  load(container); });
     container.querySelector("#btnCollapseG")?.addEventListener("click", () => { showAllG = false; load(container); });
+    container.querySelector("#btnExpandT")?.addEventListener("click",   () => { showAllT = true;  load(container); });
+    container.querySelector("#btnCollapseT")?.addEventListener("click", () => { showAllT = false; load(container); });
+    bindTaskUndo(container);
     return;
   }
 
-  draw(container, wallet, rc);
+  draw(container, wallet, rc, taskCompletions);
   setPrimaryAction("redeem", "Guthaben einl\u00f6sen", () => openRedeemDialog(container, wallet, rc));
 }
 
-function draw(container, wallet, rc) {
+function draw(container, wallet, rc, taskCompletions) {
   const fmt      = v => fmtV(v, rc);
   const redeemed = wallet.redemptions.reduce((a,r)=>a+r.cost,0);
 
@@ -74,12 +82,16 @@ function draw(container, wallet, rc) {
         return [sym, e.date||"", e.subject||"", String(e.value), d];
       },
       ["Aktion","Datum","Fach","Note","\u0394"]
-    );
+    ) +
+    taskSection(taskCompletions, showAllT);
 
-  container.querySelector("#btnExpandR")?.addEventListener("click",   () => { showAllR=true;  draw(container,wallet,rc); });
-  container.querySelector("#btnExpandG")?.addEventListener("click",   () => { showAllG=true;  draw(container,wallet,rc); });
-  container.querySelector("#btnCollapseR")?.addEventListener("click", () => { showAllR=false; draw(container,wallet,rc); });
-  container.querySelector("#btnCollapseG")?.addEventListener("click", () => { showAllG=false; draw(container,wallet,rc); });
+  container.querySelector("#btnExpandR")?.addEventListener("click",   () => { showAllR=true;  draw(container,wallet,rc,taskCompletions); });
+  container.querySelector("#btnExpandG")?.addEventListener("click",   () => { showAllG=true;  draw(container,wallet,rc,taskCompletions); });
+  container.querySelector("#btnExpandT")?.addEventListener("click",   () => { showAllT=true;  draw(container,wallet,rc,taskCompletions); });
+  container.querySelector("#btnCollapseR")?.addEventListener("click", () => { showAllR=false; draw(container,wallet,rc,taskCompletions); });
+  container.querySelector("#btnCollapseG")?.addEventListener("click", () => { showAllG=false; draw(container,wallet,rc,taskCompletions); });
+  container.querySelector("#btnCollapseT")?.addEventListener("click", () => { showAllT=false; draw(container,wallet,rc,taskCompletions); });
+  bindTaskUndo(container);
 }
 
 function section(title, items, showAll, key, rowFn, headers) {
@@ -114,6 +126,61 @@ function section(title, items, showAll, key, rowFn, headers) {
     (hasMore?'<div style="padding:4px 8px;border-top:1px solid var(--md-sys-color-outline-variant)"><button class="btn-text" id="btnExpand'+K+'">Alle '+items.length+' anzeigen</button></div>':"") +
     (canLess?'<div style="padding:4px 8px;border-top:1px solid var(--md-sys-color-outline-variant)"><button class="btn-text" id="btnCollapse'+K+'">Weniger anzeigen</button></div>':"") +
     '</div></div>';
+}
+
+function taskSection(completions, showAll) {
+  if (!completions || !completions.length) return "";
+  const rev = [...completions].reverse();
+  const visible = showAll ? rev : rev.slice(0, PREVIEW);
+  const hasMore = !showAll && completions.length > PREVIEW;
+  const canLess = showAll && completions.length > PREVIEW;
+
+  const th = h => '<th style="text-align:left;padding:8px 10px;font-size:12px;white-space:nowrap;color:var(--md-sys-color-on-surface-variant);border-bottom:1px solid var(--md-sys-color-outline-variant)">' + h + '</th>';
+  const td = (c, i, cells) => {
+    const isLast = i === cells.length - 1;
+    let color = "";
+    if (isLast) color = "color:var(--md-sys-color-primary);font-weight:600";
+    return '<td style="padding:8px 10px;font-size:13px;vertical-align:middle;border-bottom:1px solid var(--md-sys-color-outline-variant);' + color + '">' + c + '</td>';
+  };
+
+  const rows = visible.map(c => {
+    const cells = [c.task_name, c.reward.toFixed(2) + " \u20ac", c.completed_at || ""];
+    return '<tr data-comp-id="' + c.id + '">' + cells.map((c, i) => td(c, i, cells)).join("") +
+      '<td style="padding:8px 10px;font-size:13px;vertical-align:middle;border-bottom:1px solid var(--md-sys-color-outline-variant)">' +
+        '<button class="icon-btn-sm btn-undo-task" data-comp-id="' + c.id + '" title="R\u00fcckg\u00e4ngig" style="color:var(--md-sys-color-error)">' +
+          '<span class="material-symbols-rounded" style="font-size:18px">undo</span>' +
+        '</button>' +
+      '</td>' +
+    '</tr>';
+  }).join("");
+
+  return '<div style="margin-bottom:20px">' +
+    '<div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:8px">' +
+      '<h3 style="font-size:15px;font-weight:600">Taschengeld-Buchungen</h3>' +
+      '<span style="font-size:12px;color:var(--md-sys-color-on-surface-variant)">' + completions.length + ' Eintr\u00e4ge</span>' +
+    '</div>' +
+    '<div class="card" style="padding:0;overflow:hidden"><div style="overflow-x:auto">' +
+      '<table style="width:100%;border-collapse:collapse"><thead><tr>' +
+        ['Aufgabe', 'Betrag', 'Datum'].map(th).join("") +
+      '</tr></thead><tbody>' + rows + '</tbody></table>' +
+    '</div>' +
+    (hasMore ? '<div style="padding:4px 8px;border-top:1px solid var(--md-sys-color-outline-variant)"><button class="btn-text" id="btnExpandT">Alle ' + completions.length + ' anzeigen</button></div>' : "") +
+    (canLess ? '<div style="padding:4px 8px;border-top:1px solid var(--md-sys-color-outline-variant)"><button class="btn-text" id="btnCollapseT">Weniger anzeigen</button></div>' : "") +
+    '</div></div>';
+}
+
+function bindTaskUndo(container) {
+  container.querySelectorAll(".btn-undo-task").forEach(btn => {
+    btn.addEventListener("click", async e => {
+      const compId = parseInt(e.target.closest(".btn-undo-task").dataset.compId);
+      if (!compId) return;
+      try {
+        await apiFetch("/api/tasks/complete/" + compId, { method: "DELETE" });
+        showSnackbar("Buchung r\u00fcckg\u00e4ngig gemacht.");
+        await load(container);
+      } catch(e) { showSnackbar(e.message, "error"); }
+    });
+  });
 }
 
 function openRedeemDialog(container, wallet, rc) {

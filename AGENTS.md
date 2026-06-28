@@ -13,30 +13,33 @@ Instructions for AI agents working on this repository.
 ## Repository Layout
 
 ```
-grade-calculator/
-├── app.py              # Flask entry point — all API routes
+grades-and-chores-manager/
+├── app.py              # Flask entry point — all API routes (+ tasks)
 ├── config.py           # Absolute path resolution via env vars / .env
-├── models.py           # Data models: Grade, Subject, Wallet, RewardConfig, AppConfig
-├── storage.py          # JSON load/save for all models
+├── models.py           # Data models: Grade, Subject, Wallet, RewardConfig,
+│                       #   AppConfig, TaskTemplate, TaskCompletion, TasksData
+├── storage.py          # JSON load/save for all models (+ tasks)
 ├── requirements.txt    # flask, python-dotenv, gunicorn
 ├── _env                # .env template (copy to .env, never commit .env)
 ├── templates/
-│   └── index.html      # SPA shell — loaded once, JS takes over routing
+│   └── index.html      # SPA shell — mode switcher, dynamic nav
 └── static/
-    ├── css/app.css         # All styles — M3 CSS custom properties, no framework
+    ├── css/app.css         # All styles — M3 CSS custom properties + mode switcher
     ├── manifest.json       # PWA manifest
     ├── sw.js               # Service worker
     └── js/
-        ├── app.js          # Router, exports: apiFetch, showSnackbar, setPrimaryAction,
-        │                   #   clearPrimaryAction, skeletonCard, skeletonGrid, navigateTo
+        ├── app.js          # Router, mode-switcher, exports: apiFetch, showSnackbar,
+        │                   #   setPrimaryAction, clearPrimaryAction, skeletonCard,
+        │                   #   skeletonGrid, navigateTo, getCurrentMode
         ├── components.js   # openDialog, card, statChip, gradeBadge, emptyState,
         │                   #   errorBanner, injectComponentStyles, validateAll, validators
         ├── tour.js         # Onboarding tour: checkTour(), startTour()
         └── pages/
             ├── overview.js
-            ├── wallet.js
+            ├── wallet.js   # Now includes Taschengeld-Buchungen section
             ├── stats.js
-            └── settings.js
+            ├── settings.js
+            └── tasks.js    # Chore/allowance task management
 ```
 
 ---
@@ -119,7 +122,14 @@ grade-calculator/
 | POST | `/api/reset` | `{action}` | See actions below |
 | GET | `/api/startup-status` | — | Load status of all 4 files |
 
-**Reset actions:** `grade_log`, `redemptions`, `balance`, `app_config`, `reward_config`
+| GET | `/api/tasks` | — | Templates + completions, each template has `available` |
+| POST | `/api/tasks` | `{name,reward,period?}` | period: once/daily/weekly/monthly |
+| PUT | `/api/tasks/<id>` | Partial update | |
+| DELETE | `/api/tasks/<id>` | — | 204, removes template + linked completions |
+| POST | `/api/tasks/<id>/complete` | — | Credits wallet, logs completion |
+| DELETE | `/api/tasks/complete/<id>` | — | Reverses wallet credit, restores template |
+
+**Reset actions:** `grade_log`, `redemptions`, `balance`, `app_config`, `reward_config`, `task_log`, `tasks`
 
 ---
 
@@ -142,6 +152,16 @@ RewardConfig(enabled, points_map, money_per_point, reward_mode, unit_name, unit_
   # points_map: {int grade → int points}
 
 AppConfig(data_path, wallet_path, reward_config_path, backup_path, verbose_loading)
+
+TaskTemplate(name, reward, period, active, last_completed)
+  # period: "once" | "daily" | "weekly" | "monthly"
+  # is_available() checks period against last_completed
+
+TaskCompletion(task_id, task_name, reward, completed_at)
+  # linked to task template; snapshot of task_name/reward at completion time
+
+TasksData(templates, completions)
+  # container for both lists; persisted as one JSON file
 ```
 
 ---

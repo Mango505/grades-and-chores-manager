@@ -10,12 +10,13 @@ from datetime import datetime
 
 from flask import Flask, jsonify, request, render_template, abort, send_file
 from config import Config
-from models import Grade, Subject, Wallet, RewardConfig, AppConfig, LoadStatus
+from models import Grade, Subject, Wallet, RewardConfig, AppConfig, TasksData, TaskTemplate, TaskCompletion, LoadStatus
 from storage import (
     load_app_config, save_app_config,
     load_subjects,   save_subjects,
     load_wallet,     save_wallet,
     load_reward_config, save_reward_config,
+    load_tasks,      save_tasks,
 )
 
 app = Flask(__name__)
@@ -47,14 +48,16 @@ def _load_all():
     subjects,      _ = load_subjects(app_config.data_path)
     wallet,        _ = load_wallet(app_config.wallet_path)
     reward_config, _ = load_reward_config(app_config.reward_config_path)
-    return app_config, subjects, wallet, reward_config
+    tasks,         _ = load_tasks(Config.TASKS_PATH)
+    return app_config, subjects, wallet, reward_config, tasks
 
 
-def _save_all(app_config, subjects, wallet, reward_config):
+def _save_all(app_config, subjects, wallet, reward_config, tasks):
     save_app_config(app_config,       app_config.app_config_path)
     save_subjects(subjects,           app_config.data_path)
     save_wallet(wallet,               app_config.wallet_path)
     save_reward_config(reward_config, app_config.reward_config_path)
+    save_tasks(tasks,                 Config.TASKS_PATH)
 
 
 def _subject_index(subjects: list, name: str) -> int:
@@ -79,7 +82,7 @@ def index():
 
 @app.route("/api/subjects", methods=["GET"])
 def get_subjects():
-    _, subjects, _, _ = _load_all()
+    _, subjects, _, _, _ = _load_all()
     return jsonify([s.to_dict() for s in subjects])
 
 
@@ -89,22 +92,22 @@ def create_subject():
     name = (data.get("name") or "").strip()
     if not name:
         abort(400, "name is required")
-    app_config, subjects, wallet, reward_config = _load_all()
+    app_config, subjects, wallet, reward_config, _tasks = _load_all()
     if any(s.name == name for s in subjects):
         abort(409, f"Subject '{name}' already exists")
     subjects.append(Subject(name))
-    _save_all(app_config, subjects, wallet, reward_config)
+    _save_all(app_config, subjects, wallet, reward_config, _tasks)
     return jsonify({"name": name}), 201
 
 
 @app.route("/api/subjects/<string:subject_name>", methods=["DELETE"])
 def delete_subject(subject_name):
-    app_config, subjects, wallet, reward_config = _load_all()
+    app_config, subjects, wallet, reward_config, _tasks = _load_all()
     idx = _subject_index(subjects, subject_name)
     if idx == -1:
         abort(404, f"Subject '{subject_name}' not found")
     subjects.pop(idx)
-    _save_all(app_config, subjects, wallet, reward_config)
+    _save_all(app_config, subjects, wallet, reward_config, _tasks)
     return "", 204
 
 
@@ -112,12 +115,12 @@ def delete_subject(subject_name):
 def reorder_subjects():
     data  = request.get_json(force=True)
     order = data.get("order", [])
-    app_config, subjects, wallet, reward_config = _load_all()
+    app_config, subjects, wallet, reward_config, _tasks = _load_all()
     name_map  = {s.name: s for s in subjects}
     reordered = [name_map[n] for n in order if n in name_map]
     remaining = [s for s in subjects if s.name not in set(order)]
     subjects  = reordered + remaining
-    _save_all(app_config, subjects, wallet, reward_config)
+    _save_all(app_config, subjects, wallet, reward_config, _tasks)
     return jsonify([s.to_dict() for s in subjects])
 
 
@@ -132,7 +135,7 @@ def add_grade(subject_name):
     book_reward defaults to true. Set to false to skip wallet credit for this grade.
     """
     data = request.get_json(force=True)
-    app_config, subjects, wallet, reward_config = _load_all()
+    app_config, subjects, wallet, reward_config, _tasks = _load_all()
     idx = _subject_index(subjects, subject_name)
     if idx == -1:
         abort(404, f"Subject '{subject_name}' not found")
@@ -164,14 +167,14 @@ def add_grade(subject_name):
         "+", subject_name, value, weight, labels,
         value_delta=earned if book_reward else None
     )
-    _save_all(app_config, subjects, wallet, reward_config)
+    _save_all(app_config, subjects, wallet, reward_config, _tasks)
     return jsonify(grade.to_dict()), 201
 
 
 @app.route("/api/subjects/<string:subject_name>/grades/<int:grade_index>", methods=["PUT"])
 def edit_grade(subject_name, grade_index):
     data = request.get_json(force=True)
-    app_config, subjects, wallet, reward_config = _load_all()
+    app_config, subjects, wallet, reward_config, _tasks = _load_all()
     idx = _subject_index(subjects, subject_name)
     if idx == -1:
         abort(404)
@@ -197,13 +200,13 @@ def edit_grade(subject_name, grade_index):
 
     subject.grades[grade_index] = new_grade
     wallet.log_grade_event("~", subject_name, new_value, new_weight, new_labels, value_delta=value_delta)
-    _save_all(app_config, subjects, wallet, reward_config)
+    _save_all(app_config, subjects, wallet, reward_config, _tasks)
     return jsonify(new_grade.to_dict())
 
 
 @app.route("/api/subjects/<string:subject_name>/grades/<int:grade_index>", methods=["DELETE"])
 def delete_grade(subject_name, grade_index):
-    app_config, subjects, wallet, reward_config = _load_all()
+    app_config, subjects, wallet, reward_config, _tasks = _load_all()
     idx = _subject_index(subjects, subject_name)
     if idx == -1:
         abort(404)
@@ -221,7 +224,7 @@ def delete_grade(subject_name, grade_index):
 
     wallet.log_grade_event("-", subject_name, grade.value, grade.weight, grade.labels, value_delta=value_delta)
     subject.remove_grade(grade_index)
-    _save_all(app_config, subjects, wallet, reward_config)
+    _save_all(app_config, subjects, wallet, reward_config, _tasks)
     return "", 204
 
 
@@ -231,7 +234,7 @@ def delete_grade(subject_name, grade_index):
 
 @app.route("/api/wallet", methods=["GET"])
 def get_wallet():
-    _, _, wallet, reward_config = _load_all()
+    _, _, wallet, reward_config, _ = _load_all()
     return jsonify({
         **wallet.to_dict(),
         "formatted_balance": reward_config.format_value(wallet.balance) if reward_config.enabled else None,
@@ -241,7 +244,7 @@ def get_wallet():
 @app.route("/api/wallet/redeem", methods=["POST"])
 def redeem():
     data = request.get_json(force=True)
-    app_config, subjects, wallet, reward_config = _load_all()
+    app_config, subjects, wallet, reward_config, _tasks = _load_all()
     if not reward_config.enabled:
         abort(400, "Reward system is disabled")
     try:
@@ -253,7 +256,7 @@ def redeem():
     if cost > wallet.balance:
         abort(400, f"Insufficient balance: {wallet.balance:.2f}")
     wallet.redeem(cost, (data.get("description") or "<keine Beschreibung>").strip())
-    _save_all(app_config, subjects, wallet, reward_config)
+    _save_all(app_config, subjects, wallet, reward_config, _tasks)
     return jsonify(wallet.to_dict())
 
 
@@ -263,19 +266,19 @@ def redeem():
 
 @app.route("/api/reward-config", methods=["GET"])
 def get_reward_config():
-    _, _, _, reward_config = _load_all()
+    _, _, _, reward_config, _ = _load_all()
     return jsonify(reward_config.to_dict())
 
 
 @app.route("/api/reward-config", methods=["POST"])
 def update_reward_config():
     data = request.get_json(force=True)
-    app_config, subjects, wallet, _ = _load_all()
+    app_config, subjects, wallet, _rc, _tasks = _load_all()
     try:
         new_config = RewardConfig.from_dict(data)
     except (KeyError, TypeError, ValueError) as e:
         abort(400, f"Invalid reward config: {e}")
-    _save_all(app_config, subjects, wallet, new_config)
+    _save_all(app_config, subjects, wallet, new_config, _tasks)
     return jsonify(new_config.to_dict())
 
 
@@ -285,7 +288,7 @@ def update_reward_config():
 
 @app.route("/api/overview", methods=["GET"])
 def get_overview():
-    _, subjects, _, _ = _load_all()
+    _, subjects, _, _, _ = _load_all()
     total_value = total_weight = 0.0
     result = []
     for s in subjects:
@@ -304,7 +307,7 @@ def get_overview():
 
 @app.route("/api/export", methods=["GET"])
 def get_export():
-    _, subjects, wallet, reward_config = _load_all()
+    _, subjects, wallet, reward_config, _tasks = _load_all()
     swg        = [s for s in subjects if s.grades]
     all_grades = [g for s in swg for g in s.grades]
     tw         = sum(g.weight for g in all_grades)
@@ -337,6 +340,7 @@ def get_export():
         "reward_config":   reward_config.to_dict(),
         "wallet_balance":  wallet.balance,
         "total_redeemed":  sum(r["cost"] for r in wallet.redemptions),
+        "tasks":           _tasks.to_dict(),
     })
 
 
@@ -346,7 +350,7 @@ def get_export():
 
 @app.route("/api/app-config", methods=["GET"])
 def get_app_config():
-    app_config, _, _, _ = _load_all()
+    app_config, _, _, _, _ = _load_all()
     return jsonify({**app_config.to_dict(), "resolved_data_dir": Config.DATA_DIR})
 
 
@@ -356,12 +360,13 @@ def get_app_config():
 
 @app.route("/api/backup", methods=["GET"])
 def download_backup():
-    app_config, _, _, _ = _load_all()
+    app_config, _, _, _, _ = _load_all()
     files = {
         app_config.data_path:          "grades.json",
         app_config.wallet_path:        "wallet.json",
         app_config.reward_config_path: "reward_config.json",
         app_config.app_config_path:    "app_config.json",
+        Config.TASKS_PATH:             "tasks.json",
     }
     buf = io.BytesIO()
     with zipfile.ZipFile(buf, "w", zipfile.ZIP_DEFLATED) as zf:
@@ -371,7 +376,7 @@ def download_backup():
     buf.seek(0)
     stamp = datetime.now().strftime("%Y%m%d_%H%M%S")
     return send_file(buf, mimetype="application/zip", as_attachment=True,
-                     download_name=f"notenrechner_backup_{stamp}.zip")
+                     download_name=f"noten_taschengeld_backup_{stamp}.zip")
 
 
 # ---------------------------------------------------------------------------
@@ -381,7 +386,8 @@ def download_backup():
 @app.route("/api/startup-status", methods=["GET"])
 def startup_status():
     from storage import (load_app_config as _lac, load_subjects as _ls,
-                         load_wallet as _lw, load_reward_config as _lr)
+                         load_wallet as _lw, load_reward_config as _lr,
+                         load_tasks as _lt)
 
     app_config_obj, ac_st = _lac(Config.APP_CONFIG_PATH)
 
@@ -391,16 +397,19 @@ def startup_status():
     data_path   = _res(app_config_obj.data_path)
     wallet_path = _res(app_config_obj.wallet_path)
     rc_path     = _res(app_config_obj.reward_config_path)
+    tasks_path  = Config.TASKS_PATH
 
     _, s_st  = _ls(data_path)
     _, w_st  = _lw(wallet_path)
     _, rc_st = _lr(rc_path)
+    _, t_st  = _lt(tasks_path)
 
     return jsonify({"files": [
         {"name": "App-Konfiguration",       "path": Config.APP_CONFIG_PATH, "status": ac_st.value},
         {"name": "Noten",                   "path": data_path,              "status": s_st.value},
         {"name": "Wallet",                  "path": wallet_path,            "status": w_st.value},
         {"name": "Belohnungskonfiguration", "path": rc_path,                "status": rc_st.value},
+        {"name": "Aufgaben",                "path": tasks_path,             "status": t_st.value},
     ]})
 
 
@@ -412,7 +421,7 @@ def startup_status():
 def reset_data():
     data   = request.get_json(force=True)
     action = data.get("action", "")
-    app_config, subjects, wallet, reward_config = _load_all()
+    app_config, subjects, wallet, reward_config, _tasks = _load_all()
 
     if action == "grade_log":
         wallet.grade_log = []
@@ -429,10 +438,15 @@ def reset_data():
         )
     elif action == "reward_config":
         reward_config = RewardConfig()
+    elif action == "task_log":
+        _tasks.completions = []
+    elif action == "tasks":
+        _tasks.templates = []
+        _tasks.completions = []
     else:
         abort(400, f"Unknown action: {action}")
 
-    _save_all(app_config, subjects, wallet, reward_config)
+    _save_all(app_config, subjects, wallet, reward_config, _tasks)
     return jsonify({"ok": True, "action": action})
 
 
@@ -443,10 +457,10 @@ def reset_data():
 @app.route("/api/app-config", methods=["PATCH"])
 def update_app_config():
     data = request.get_json(force=True)
-    app_config, subjects, wallet, reward_config = _load_all()
+    app_config, subjects, wallet, reward_config, _tasks = _load_all()
     if "verbose_loading" in data:
         app_config.verbose_loading = bool(data["verbose_loading"])
-    _save_all(app_config, subjects, wallet, reward_config)
+    _save_all(app_config, subjects, wallet, reward_config, _tasks)
     return jsonify(app_config.to_dict())
 
 
@@ -457,7 +471,7 @@ def update_app_config():
 @app.route("/api/backups/cleanup", methods=["POST"])
 def cleanup_backups():
     import shutil
-    app_config, _, _, _ = _load_all()
+    app_config, _, _, _, _ = _load_all()
     backup_path = app_config.backup_path
 
     if not os.path.exists(backup_path):
@@ -484,6 +498,125 @@ def cleanup_backups():
     if failed:
         msg += f" Fehlgeschlagen: {', '.join(failed)}"
     return jsonify({"message": msg, "deleted": deleted, "failed": failed})
+
+
+# ---------------------------------------------------------------------------
+# API – Tasks / Taschengeld
+# ---------------------------------------------------------------------------
+
+@app.route("/api/tasks", methods=["GET"])
+def get_tasks():
+    _, _, _, _, tasks = _load_all()
+    return jsonify({
+        "templates": [{
+            **t.to_dict(),
+            "available": t.is_available(),
+        } for t in tasks.templates],
+        "completions": [c.to_dict() for c in tasks.completions],
+    })
+
+
+@app.route("/api/tasks", methods=["POST"])
+def create_task():
+    data = request.get_json(force=True)
+    name = (data.get("name") or "").strip()
+    if not name:
+        abort(400, "name is required")
+    try:
+        reward = float(data["reward"])
+    except (KeyError, TypeError, ValueError):
+        abort(400, "reward (float) required")
+    if reward <= 0:
+        abort(400, "reward must be > 0")
+    period = data.get("period", "once")
+    if period not in ("once", "daily", "weekly", "monthly"):
+        abort(400, "period must be once|daily|weekly|monthly")
+    app_config, subjects, wallet, reward_config, tasks = _load_all()
+    t = TaskTemplate(name=name, reward=reward, period=period, task_id=tasks.next_template_id())
+    tasks.templates.append(t)
+    _save_all(app_config, subjects, wallet, reward_config, tasks)
+    return jsonify(t.to_dict()), 201
+
+
+@app.route("/api/tasks/<int:task_id>", methods=["PUT"])
+def update_task(task_id):
+    data = request.get_json(force=True)
+    app_config, subjects, wallet, reward_config, tasks = _load_all()
+    idx = next((i for i, t in enumerate(tasks.templates) if t.id == task_id), -1)
+    if idx == -1:
+        abort(404, "Task not found")
+    t = tasks.templates[idx]
+    if "name" in data:
+        t.name = (data["name"] or "").strip()
+        if not t.name:
+            abort(400, "name must not be empty")
+    if "reward" in data:
+        try:
+            t.reward = float(data["reward"])
+        except (TypeError, ValueError):
+            abort(400, "reward must be a number")
+        if t.reward <= 0:
+            abort(400, "reward must be > 0")
+    if "period" in data:
+        if data["period"] not in ("once", "daily", "weekly", "monthly"):
+            abort(400, "period must be once|daily|weekly|monthly")
+        t.period = data["period"]
+    if "active" in data:
+        t.active = bool(data["active"])
+    _save_all(app_config, subjects, wallet, reward_config, tasks)
+    return jsonify(t.to_dict())
+
+
+@app.route("/api/tasks/<int:task_id>", methods=["DELETE"])
+def delete_task(task_id):
+    app_config, subjects, wallet, reward_config, tasks = _load_all()
+    idx = next((i for i, t in enumerate(tasks.templates) if t.id == task_id), -1)
+    if idx == -1:
+        abort(404, "Task not found")
+    tasks.templates.pop(idx)
+    tasks.completions = [c for c in tasks.completions if c.task_id != task_id]
+    _save_all(app_config, subjects, wallet, reward_config, tasks)
+    return "", 204
+
+
+@app.route("/api/tasks/<int:task_id>/complete", methods=["POST"])
+def complete_task(task_id):
+    app_config, subjects, wallet, reward_config, tasks = _load_all()
+    idx = next((i for i, t in enumerate(tasks.templates) if t.id == task_id), -1)
+    if idx == -1:
+        abort(404, "Task not found")
+    t = tasks.templates[idx]
+    if not t.is_available():
+        abort(400, "Task is not available (already completed this period)")
+    t.mark_completed()
+    comp = TaskCompletion(
+        task_id=t.id, task_name=t.name, reward=t.reward,
+        comp_id=tasks.next_completion_id(),
+    )
+    tasks.completions.append(comp)
+    wallet.balance += t.reward
+    _save_all(app_config, subjects, wallet, reward_config, tasks)
+    return jsonify(comp.to_dict()), 201
+
+
+@app.route("/api/tasks/complete/<int:comp_id>", methods=["DELETE"])
+def undo_task_completion(comp_id):
+    app_config, subjects, wallet, reward_config, tasks = _load_all()
+    idx = next((i for i, c in enumerate(tasks.completions) if c.id == comp_id), -1)
+    if idx == -1:
+        abort(404, "Completion not found")
+    comp = tasks.completions[idx]
+
+    # Restore template to available state
+    t = next((t for t in tasks.templates if t.id == comp.task_id), None)
+    if t:
+        t.last_completed = None
+        t.active = True
+
+    wallet.balance -= comp.reward
+    tasks.completions.pop(idx)
+    _save_all(app_config, subjects, wallet, reward_config, tasks)
+    return "", 204
 
 
 if __name__ == "__main__":

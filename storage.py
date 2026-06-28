@@ -1,6 +1,6 @@
 import json
 import os
-from models import Subject, RewardConfig, Wallet, AppConfig, LoadStatus
+from models import Subject, RewardConfig, Wallet, AppConfig, TasksData, LoadStatus
 
 APPCONFIG_PATH = "data/app_config.json"
 DATA_PATH = "data/grades.json"
@@ -110,3 +110,19 @@ def load_reward_config(path: str = REWARDCONFIG_PATH) -> tuple[RewardConfig, Loa
 
     except json.JSONDecodeError:
         return RewardConfig(), LoadStatus.CORRUPT   # returns default config if file is corrupt
+
+
+def save_tasks(tasks: TasksData, path: str = "data/tasks.json") -> None:
+    os.makedirs(os.path.dirname(path), exist_ok=True)
+    with open(path, "w") as f:
+        json.dump(tasks.to_dict(), f, indent=2)
+
+def load_tasks(path: str = "data/tasks.json") -> tuple[TasksData, LoadStatus]:
+    if not os.path.exists(path):
+        return TasksData(), LoadStatus.MISSING
+    try:
+        with open(path, "r") as f:
+            data = json.load(f)
+            return TasksData.from_dict(data), LoadStatus.OK
+    except (json.JSONDecodeError, KeyError, TypeError):
+        return TasksData(), LoadStatus.CORRUPT
