@@ -38,17 +38,19 @@ def _load_all():
         app_config.data_path          = Config.GRADES_PATH
         app_config.wallet_path        = Config.WALLET_PATH
         app_config.reward_config_path = Config.REWARD_CONFIG_PATH
+        app_config.tasks_path         = Config.TASKS_PATH
         app_config.backup_path        = Config.BACKUP_PATH
     else:
         app_config.data_path          = _resolve(app_config.data_path)
         app_config.wallet_path        = _resolve(app_config.wallet_path)
         app_config.reward_config_path = _resolve(app_config.reward_config_path)
+        app_config.tasks_path         = _resolve(app_config.tasks_path)
         app_config.backup_path        = _resolve(app_config.backup_path)
 
     subjects,      _ = load_subjects(app_config.data_path)
     wallet,        _ = load_wallet(app_config.wallet_path)
     reward_config, _ = load_reward_config(app_config.reward_config_path)
-    tasks,         _ = load_tasks(Config.TASKS_PATH)
+    tasks,         _ = load_tasks(app_config.tasks_path)
     return app_config, subjects, wallet, reward_config, tasks
 
 
@@ -57,7 +59,7 @@ def _save_all(app_config, subjects, wallet, reward_config, tasks):
     save_subjects(subjects,           app_config.data_path)
     save_wallet(wallet,               app_config.wallet_path)
     save_reward_config(reward_config, app_config.reward_config_path)
-    save_tasks(tasks,                 Config.TASKS_PATH)
+    save_tasks(tasks,                 app_config.tasks_path)
 
 
 def _subject_index(subjects: list, name: str) -> int:
@@ -366,7 +368,7 @@ def download_backup():
         app_config.wallet_path:        "wallet.json",
         app_config.reward_config_path: "reward_config.json",
         app_config.app_config_path:    "app_config.json",
-        Config.TASKS_PATH:             "tasks.json",
+        app_config.tasks_path:         "tasks.json",
     }
     buf = io.BytesIO()
     with zipfile.ZipFile(buf, "w", zipfile.ZIP_DEFLATED) as zf:
@@ -397,7 +399,7 @@ def startup_status():
     data_path   = _res(app_config_obj.data_path)
     wallet_path = _res(app_config_obj.wallet_path)
     rc_path     = _res(app_config_obj.reward_config_path)
-    tasks_path  = Config.TASKS_PATH
+    tasks_path  = _res(app_config_obj.tasks_path)
 
     _, s_st  = _ls(data_path)
     _, w_st  = _lw(wallet_path)

@@ -96,9 +96,6 @@ function toggleModeDropdown() {
   const hidden = overlay.hasAttribute("hidden");
   if (hidden) {
     overlay.removeAttribute("hidden");
-    setTimeout(() => {
-      document.addEventListener("click", closeModeDropdown, { once: true });
-    }, 0);
   } else {
     overlay.setAttribute("hidden", "");
   }
@@ -111,6 +108,10 @@ function closeModeDropdown() {
 
 document.getElementById("drawerSwitcherBtn")?.addEventListener("click", toggleModeDropdown);
 document.getElementById("modeSwitcherTop")?.addEventListener("click", toggleModeDropdown);
+
+document.getElementById("modeSwitcherOverlay")?.addEventListener("click", closeModeDropdown);
+
+document.getElementById("modeSwitcherMenu")?.addEventListener("click", e => e.stopPropagation());
 
 document.querySelectorAll("[data-mode]").forEach(btn => {
   btn.addEventListener("click", () => switchMode(btn.dataset.mode));

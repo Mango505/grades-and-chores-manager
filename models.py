@@ -184,6 +184,7 @@ class AppConfig:
         data_path: str = "data/grades.json",
         wallet_path: str = "data/wallet.json",
         reward_config_path: str = "data/reward_config.json",
+        tasks_path: str = "data/tasks.json",
         backup_path: str = "data/backups",
         verbose_loading: bool = True   # True = "Noten geladen: ...", False = nur Warnungen
     ):
@@ -191,6 +192,7 @@ class AppConfig:
         self.data_path = data_path
         self.wallet_path = wallet_path
         self.reward_config_path = reward_config_path
+        self.tasks_path = tasks_path
         self.backup_path = backup_path
         self.verbose_loading = verbose_loading
 
@@ -200,6 +202,7 @@ class AppConfig:
             "data_path": self.data_path,
             "wallet_path": self.wallet_path,
             "reward_config_path": self.reward_config_path,
+            "tasks_path": self.tasks_path,
             "backup_path": self.backup_path,
             "verbose_loading": self.verbose_loading
         }
@@ -211,6 +214,7 @@ class AppConfig:
             data_path=data.get("data_path") or "data/grades.json",
             wallet_path=data.get("wallet_path") or "data/wallet.json",
             reward_config_path=data.get("reward_config_path") or "data/reward_config.json",
+            tasks_path=data.get("tasks_path") or "data/tasks.json",
             backup_path=data.get("backup_path") or "data/backups",
             verbose_loading=data.get("verbose_loading", True)
         )

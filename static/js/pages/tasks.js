@@ -25,11 +25,7 @@ async function load(container) {
   const templates = _tasksData.templates || [];
   const completions = _tasksData.completions || [];
 
-  if (templates.length) {
-    setPrimaryAction("add", "Aufgabe hinzuf\u00fcgen", () => openAddTaskDialog(container));
-  } else {
-    clearPrimaryAction();
-  }
+  setPrimaryAction("add", "Aufgabe hinzuf\u00fcgen", () => openAddTaskDialog(container));
 
   draw(container, templates, completions);
 }
