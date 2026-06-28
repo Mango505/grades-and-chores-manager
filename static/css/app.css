@@ -415,6 +415,8 @@ md-filled-button, md-filled-tonal-button, md-text-button, md-outlined-button {
   border-radius: var(--shape-corner-small);
   -webkit-tap-highlight-color: transparent;
   user-select: none;
+  flex: 1;
+  min-width: 0;
 }
 
 .top-app-bar__title-area:hover {

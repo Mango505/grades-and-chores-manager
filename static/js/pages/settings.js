@@ -189,7 +189,7 @@ async function renderPaths(container) {
   catch(e) { container.innerHTML += errorBanner(e.message); return; }
   const p=(label,val)=>'<div style="margin-bottom:14px"><div style="font-size:12px;color:var(--md-sys-color-on-surface-variant);margin-bottom:2px">'+label+'</div><code style="font-size:13px;word-break:break-all;display:block">'+val+'</code></div>';
   const div=document.createElement("div"); div.className="card";
-  div.innerHTML=p("Noten",appCfg.data_path)+p("Wallet",appCfg.wallet_path)+p("Belohnungskonfig",appCfg.reward_config_path)+p("App-Konfiguration",appCfg.app_config_path)+p("Backups",appCfg.backup_path)+
+  div.innerHTML=p("Noten",appCfg.data_path)+p("Wallet",appCfg.wallet_path)+p("Aufgaben",appCfg.tasks_path)+p("Belohnungskonfig",appCfg.reward_config_path)+p("App-Konfiguration",appCfg.app_config_path)+p("Backups",appCfg.backup_path)+
     '<p style="font-size:13px;color:var(--md-sys-color-on-surface-variant);margin-top:8px">Pfade \u00fcber <code>DATA_DIR</code> in <code>.env</code> konfigurierbar.</p>';
   container.appendChild(div);
 }
@@ -237,6 +237,8 @@ function renderReset(container) {
       '<button class="btn-danger" id="rBalance"><span class="material-symbols-rounded">account_balance_wallet</span>Guthaben auf 0 zur\u00fccksetzen</button>' +
       '<button class="btn-danger" id="rRewardCfg"><span class="material-symbols-rounded">restart_alt</span>Belohnungskonfiguration zur\u00fccksetzen</button>' +
       '<button class="btn-danger" id="rAppCfg"><span class="material-symbols-rounded">settings_backup_restore</span>App-Konfiguration zur\u00fccksetzen</button>' +
+      '<button class="btn-danger" id="rTaskLog"><span class="material-symbols-rounded">delete_sweep</span>Aufgaben-Log leeren</button>' +
+      '<button class="btn-danger" id="rTasks"><span class="material-symbols-rounded">restart_alt</span>Aufgaben-Vorlagen zur\u00fccksetzen</button>' +
     '</div>';
   container.appendChild(div);
 
@@ -250,6 +252,8 @@ function renderReset(container) {
    ["rBalance","balance","Guthaben auf 0 zur\u00fccksetzen?\nLogs bleiben erhalten."],
    ["rRewardCfg","reward_config","Belohnungskonfiguration auf Standardwerte zur\u00fccksetzen?"],
    ["rAppCfg","app_config","App-Konfiguration auf Standardwerte zur\u00fccksetzen?"],
+   ["rTaskLog","task_log","Aufgaben-Log leeren?\nDas Guthaben wird nicht ver\u00e4ndert."],
+   ["rTasks","tasks","Aufgaben-Vorlagen zur\u00fccksetzen?\nAlle Vorlagen und Logs werden gel\u00f6scht."],
   ].forEach(([id,action,msg])=>{
     div.querySelector("#"+id).addEventListener("click",()=>{
       const dlg=openDialog("Best\u00e4tigung",'<p style="font-size:14px">'+msg.replace(/\n/g,"<br>")+'</p>',"Zur\u00fccksetzen",true);

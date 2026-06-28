@@ -5,7 +5,7 @@
  * - Navigates to the relevant page for each step.
  */
 
-const TOUR_KEY = "nr-tour-v1";
+const TOUR_KEY = "nr-tour-v2";
 
 const STEPS = [
   {
@@ -37,6 +37,18 @@ const STEPS = [
     title: "Konto & Belohnungen",
     text: "Das optionale Belohnungssystem vergütet gute Noten mit Punkten, Geld oder eigenen Einheiten. Aktiviere es in den Einstellungen.",
     page: "wallet",
+  },
+  {
+    icon: "swap_horiz",
+    title: "Bereich wechseln",
+    text: "Mit dem Bereichs-Switcher oben wechselst du zwischen Notenrechner und Taschengeld. Jeder Bereich hat eigene Seiten und Funktionen.",
+    page: null,
+  },
+  {
+    icon: "checklist",
+    title: "Aufgaben & Taschengeld",
+    text: "Im Taschengeld-Modus kannst du Aufgaben erstellen (einmalig, t\u00e4glich, w\u00f6chentlich, monatlich) und mit Guthaben belohnen. Erledigte Aufgaben werden im Konto verbucht.",
+    page: "tasks",
   },
   {
     icon: "settings",
