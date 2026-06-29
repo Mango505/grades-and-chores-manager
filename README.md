@@ -15,6 +15,8 @@ Both feed into the same wallet for a unified reward system.
 
 > **v3.0.0** adds the Taschengeld (chores) system with a mode switcher. The original grade calculator is preserved as the "Notenrechner" mode.
 
+> **v2.0.0** replaces the CLI with a full web interface. The original CLI (`main.py`) is preserved on the `cli` branch.
+
 ---
 
 ## Table of Contents 📄
@@ -68,10 +70,19 @@ Everything is stored locally in JSON files on the server. The web interface is a
 - Configurable sections: statistics, grades per subject, grade log, redemptions
 - Import two exports for side-by-side comparison (averages + subject deltas)
 
+### Chores & Allowance
+- **Two-mode switcher** — toggle between "Notenrechner" (grades) and "Taschengeld" (chores) from the header; each mode has its own navigation and pages
+- **Task templates** — create recurring tasks with a name, reward amount, and period (once / daily / weekly / monthly)
+- **Availability logic** — tasks show as available based on their period and `last_completed` timestamp; daily tasks reset the next day, weekly on Monday, monthly on the 1st
+- **One-click completion** — completing a task credits the shared wallet immediately and logs the completion
+- **Undo completion** — reverses the wallet credit and makes the task available again, restoring `last_completed` and `active` state
+- **Completion history** — wallet page shows a "Taschengeld-Buchungen" section with all completed tasks and an undo button
+- **Shared wallet** — grades and chores both feed into the same balance, enabling combined reward scenarios (e.g. pocket money for chores + bonus for good grades)
+
 ### App
 - Responsive Material Design 3 UI — nav drawer on desktop, bottom nav + FAB on mobile
 - Dark / light mode toggle (system preference + manual override)
-- 6-step onboarding tour on first launch, re-triggerable from settings
+- 8-step onboarding tour on first launch, re-triggerable from settings
 - Verbose loading toggle, startup file status check
 - Backup as ZIP download, old backup cleanup
 
@@ -81,11 +92,11 @@ Everything is stored locally in JSON files on the server. The web interface is a
 
 | Layer       | Stack                                                        |
 |-------------|--------------------------------------------------------------|
-| Backend     | Python 3.10+, Flask 3, python-dotenv, Gunicorn (production) |
+| Backend     | Python 3.10+, Flask 3, python-dotenv, Gunicorn (production)  |
 | Frontend    | Vanilla ES Modules, no build step                            |
-| UI          | Material Design 3 Web Components (`@material/web` via CDN)  |
+| UI          | Material Design 3 Web Components (`@material/web` via CDN)   |
 | Styling     | CSS Custom Properties (M3 tokens), no framework              |
-| Storage     | Local JSON files (unchanged from CLI)                        |
+| Storage     | Local JSON files                                             |
 
 ---
 
@@ -174,7 +185,7 @@ The service worker caches the app shell (JS, CSS, HTML) so the UI loads even whe
 grades-and-chores-manager/
 ├── app.py              # Flask server, all API routes
 ├── config.py           # Path resolution, env vars
-├── models.py           # Grade, Subject, Wallet, RewardConfig, AppConfig
+├── models.py           # Grade, Subject, Wallet, RewardConfig, AppConfig, TaskTemplate, TaskCompletion, TasksData
 ├── storage.py          # JSON load/save for all models
 ├── requirements.txt
 ├── .env                # Local config (not committed)
@@ -192,29 +203,40 @@ grades-and-chores-manager/
             ├── overview.js  # Subject grid + detail view (grade CRUD)
             ├── wallet.js    # Balance + logs
             ├── stats.js     # Charts, export, comparison
-            └── settings.js  # Reward config, paths, backup/reset
+            ├── settings.js  # Reward config, paths, backup/reset
+            └── tasks.js     # Tasks overview + completions
 ```
 
 **API routes:**
 
-```
-GET/POST   /api/subjects
-DELETE     /api/subjects/:name
-PUT        /api/subjects/reorder
-POST       /api/subjects/:name/grades          ?book_reward (bool)
-PUT        /api/subjects/:name/grades/:i
-DELETE     /api/subjects/:name/grades/:i       ?adjust_wallet
-GET        /api/wallet
-POST       /api/wallet/redeem
-GET/POST   /api/reward-config
-GET/PATCH  /api/app-config
-GET        /api/overview
-GET        /api/export
-GET        /api/backup
-POST       /api/backups/cleanup
-POST       /api/reset
-GET        /api/startup-status
-```
+| Method | Path | Purpose |
+|--------|------|---------|
+| GET | `/` | SPA shell (index.html) |
+| GET | `/api/subjects` | List all subjects |
+| POST | `/api/subjects` | Create subject |
+| DELETE | `/api/subjects/<name>` | Delete subject |
+| PUT | `/api/subjects/reorder` | Reorder subjects |
+| POST | `/api/subjects/<name>/grades` | Add grade |
+| PUT | `/api/subjects/<name>/grades/<i>` | Edit grade |
+| DELETE | `/api/subjects/<name>/grades/<i>` | Delete grade |
+| GET | `/api/wallet` | Wallet balance + logs |
+| POST | `/api/wallet/redeem` | Redeem balance |
+| GET | `/api/reward-config` | Get reward config |
+| POST | `/api/reward-config` | Save reward config |
+| GET | `/api/overview` | Aggregated grade overview |
+| GET | `/api/export` | TXT export of all data |
+| GET | `/api/app-config` | Get app config |
+| PATCH | `/api/app-config` | Update app config |
+| GET | `/api/backup` | Download ZIP backup |
+| POST | `/api/backups/cleanup` | Clean old backups |
+| GET | `/api/startup-status` | Load status of all files |
+| POST | `/api/reset` | Reset logs / config |
+| GET | `/api/tasks` | List task templates + completions |
+| POST | `/api/tasks` | Create task |
+| PUT | `/api/tasks/<id>` | Update task |
+| DELETE | `/api/tasks/<id>` | Delete task |
+| POST | `/api/tasks/<id>/complete` | Complete task |
+| DELETE | `/api/tasks/complete/<id>` | Undo completion |
 
 ---
 
@@ -228,6 +250,7 @@ All data is stored as human-readable JSON. Default locations:
 | `data/wallet.json`        | Balance, redemption log, grade change history        |
 | `data/reward_config.json` | Points map, reward mode, rate, unit name             |
 | `data/app_config.json`    | File paths, verbose loading flag                     |
+| `data/tasks.json`         | Tasks, completion history                            |
 
 Paths can be overridden via `.env` — useful for pointing the web app at existing CLI data files:
 
@@ -242,8 +265,8 @@ WALLET_PATH=~/my_data/wallet.json
 
 Both are accessible from **Settings → Backup & Reset**:
 
-- **Backup** — downloads all four data files as a single ZIP (`notenrechner_backup_YYYYMMDD_HHMMSS.zip`)
-- **Alte Backups löschen** — keeps only the most recent backup folder, deletes the rest
+- **Backup** — downloads all five data files as a single ZIP (`noten_taschengeld_backup_YYYYMMDD_HHMMSS.zip`)
+- **Alte Backups löschen** — keeps only the most recent backup folder, deletes the rest (`data/backups/)
 
 Individual reset actions (each requires confirmation):
 
@@ -254,6 +277,8 @@ Individual reset actions (each requires confirmation):
 | Guthaben zurücksetzen         | Sets wallet balance to 0                  |
 | Belohnungskonfiguration reset | Restores default points map and mode      |
 | App-Konfiguration reset       | Restores default file paths               |
+| Aufgaben-Log leeren           | Clears completion log (balance unchanged) |
+| Aufgaben-Vorlagen reset       | Clears all task templates                 |
 
 > ⚠️ Grade and subject deletion from the overview is permanent outside of a backup restore.
 
@@ -269,6 +294,8 @@ python main.py
 ```
 
 The CLI and web app share the same data format — you can switch between them by pointing both at the same JSON files.
+
+> **Note:** The CLI doesn't have a chores system and thus doesn't need a `tasks.json` file
 
 ---
 
