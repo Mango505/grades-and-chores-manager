@@ -249,13 +249,24 @@ class TaskTemplate:
             return False
         if self.period == "once":
             return self.last_completed is None
+
+        today = date.today()
+
+        # Day-of-week / day-of-month filter applies even for first availability
+        if self.period == "weekly" and self.weekdays:
+            if today.weekday() not in self.weekdays:
+                return False
+        if self.period == "monthly" and self.month_day:
+            if today.day != self.month_day:
+                return False
+
         if not self.last_completed:
             return True
         try:
             last = datetime.strptime(self.last_completed, "%Y-%m-%d").date()
         except (ValueError, TypeError):
             return True
-        today = date.today()
+
         interval = self.interval or 1
 
         if self.period == "daily":
@@ -263,8 +274,6 @@ class TaskTemplate:
 
         if self.period == "weekly":
             if self.weekdays:
-                if today.weekday() not in self.weekdays:
-                    return False
                 if last >= today:
                     return False
                 if interval > 1:
@@ -277,8 +286,6 @@ class TaskTemplate:
 
         if self.period == "monthly":
             if self.month_day:
-                if today.day != self.month_day:
-                    return False
                 if last >= today:
                     return False
                 if interval > 1:
@@ -359,9 +366,11 @@ class TaskCompletion:
 class TasksData:
     """Container for task templates + completion history (persisted as one JSON file)."""
     def __init__(self, templates: list[TaskTemplate] | None = None,
-                 completions: list[TaskCompletion] | None = None):
+                 completions: list[TaskCompletion] | None = None,
+                 missed_log: list[dict] | None = None):
         self.templates = templates if templates is not None else []
         self.completions = completions if completions is not None else []
+        self.missed_log = missed_log if missed_log is not None else []
 
     def next_template_id(self) -> int:
         if not self.templates:
@@ -377,6 +386,7 @@ class TasksData:
         return {
             "templates": [t.to_dict() for t in self.templates],
             "completions": [c.to_dict() for c in self.completions],
+            "missed_log": self.missed_log,
         }
 
     @classmethod
@@ -384,6 +394,7 @@ class TasksData:
         return cls(
             templates=[TaskTemplate.from_dict(t) for t in data.get("templates", [])],
             completions=[TaskCompletion.from_dict(c) for c in data.get("completions", [])],
+            missed_log=data.get("missed_log", []),
         )
 
 

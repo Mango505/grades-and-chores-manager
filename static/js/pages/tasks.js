@@ -26,10 +26,10 @@ async function load(container) {
 
   setPrimaryAction("add", "Aufgabe hinzuf\u00fcgen", () => openAddTaskDialog(container));
 
-  draw(container, templates, completions);
+  draw(container, templates, completions, _tasksData.missed_log);
 }
 
-function draw(container, templates, completions) {
+function draw(container, templates, completions, missedLog) {
   if (!templates.length) {
     container.innerHTML =
       '<h2 style="font-size:22px;font-weight:500;margin-bottom:20px">Aufgaben</h2>' +
@@ -44,7 +44,8 @@ function draw(container, templates, completions) {
     '<div id="taskGrid" style="display:grid;grid-template-columns:repeat(auto-fill,minmax(280px,1fr));gap:16px">' +
       list +
     '</div>' +
-    historySection(completions);
+    historySection(completions) +
+    missedSection(missedLog);
 
   bindEvents(container, templates, completions);
 }
@@ -74,12 +75,23 @@ function formatPeriod(t) {
 
 function taskCard(t) {
   const available = t.available;
+  const completed = !!t.last_completed;
   const periodLabel = formatPeriod(t);
-  const statusIcon = available ? "radio_button_unchecked" : "check_circle";
-  const statusColor = available
-    ? "var(--md-sys-color-on-surface-variant)"
-    : "var(--md-sys-color-primary)";
-  const statusText = available ? "Offen" : "Erledigt";
+  let statusIcon, statusColor, statusText, statusLabel;
+
+  if (available) {
+    statusIcon = "radio_button_unchecked";
+    statusColor = "var(--md-sys-color-on-surface-variant)";
+    statusLabel = "Offen";
+  } else if (completed) {
+    statusIcon = "check_circle";
+    statusColor = "var(--md-sys-color-primary)";
+    statusLabel = "Erledigt";
+  } else {
+    statusIcon = "event_busy";
+    statusColor = "var(--md-sys-color-on-surface-variant)";
+    statusLabel = "Nicht verf\u00fcgbar";
+  }
 
   return '<div class="card task-card" data-id="' + t.id + '" style="padding:16px 20px">' +
     '<div style="display:flex;justify-content:space-between;align-items:flex-start;gap:8px">' +
@@ -94,13 +106,15 @@ function taskCard(t) {
       '</div>' +
       '<div style="display:flex;flex-direction:column;align-items:center;gap:4px">' +
         '<span class="material-symbols-rounded" style="font-size:28px;color:' + statusColor + '">' + statusIcon + '</span>' +
-        '<span style="font-size:11px;color:' + statusColor + '">' + statusText + '</span>' +
+        '<span style="font-size:11px;color:' + statusColor + '">' + statusLabel + '</span>' +
       '</div>' +
     '</div>' +
     '<div style="display:flex;gap:8px;margin-top:12px;justify-content:flex-end">' +
       (available
         ? '<button class="btn-filled btn-complete" style="padding:6px 16px;font-size:13px">Erledigen</button>'
-        : '<button class="btn-text btn-redo" style="font-size:13px" disabled>Erledigt</button>') +
+        : completed
+          ? '<button class="btn-text btn-redo" style="font-size:13px" disabled>Erledigt</button>'
+          : '') +
       '<button class="icon-btn-sm btn-edit-task" title="Bearbeiten"><span class="material-symbols-rounded" style="font-size:18px">edit</span></button>' +
       '<button class="icon-btn-sm btn-del-task" title="L\u00f6schen" style="color:var(--md-sys-color-error)"><span class="material-symbols-rounded" style="font-size:18px">delete</span></button>' +
     '</div>' +
@@ -135,6 +149,31 @@ function historySection(completions) {
       (hasMore
         ? '<div style="padding:4px 8px;border-top:1px solid var(--md-sys-color-outline-variant)"><span style="display:block;padding:8px;text-align:center;font-size:12px;color:var(--md-sys-color-on-surface-variant)">+ ' + (completions.length - 10) + ' weitere im Konto-Verlauf</span></div>'
         : "") +
+    '</div>' +
+  '</div>';
+}
+
+function missedSection(missedLog) {
+  if (!missedLog || !missedLog.length) return "";
+  const rev = [...missedLog].reverse();
+  const recent = rev.slice(0, 10);
+  const rows = recent.map(m =>
+    '<tr>' +
+      '<td style="padding:8px 10px;font-size:13px">' + m.task_name + '</td>' +
+      '<td style="padding:8px 10px;font-size:12px;color:var(--md-sys-color-on-surface-variant)">' + (m.scheduled_date || "") + '</td>' +
+    '</tr>'
+  ).join("");
+
+  return '<div style="margin-top:24px">' +
+    '<h3 style="font-size:15px;font-weight:600;margin-bottom:8px;color:var(--md-sys-color-on-surface-variant)">Verpasst</h3>' +
+    '<div class="card" style="padding:0;overflow:hidden;border:1px solid var(--md-sys-color-outline-variant)">' +
+      '<table style="width:100%;border-collapse:collapse">' +
+        '<thead><tr>' +
+          '<th style="text-align:left;padding:8px 10px;font-size:12px;color:var(--md-sys-color-on-surface-variant);border-bottom:1px solid var(--md-sys-color-outline-variant)">Aufgabe</th>' +
+          '<th style="text-align:left;padding:8px 10px;font-size:12px;color:var(--md-sys-color-on-surface-variant);border-bottom:1px solid var(--md-sys-color-outline-variant)">Geplant am</th>' +
+        '</tr></thead>' +
+        '<tbody>' + rows + '</tbody>' +
+      '</table>' +
     '</div>' +
   '</div>';
 }

@@ -515,6 +515,7 @@ def get_tasks():
             "available": t.is_available(),
         } for t in tasks.templates],
         "completions": [c.to_dict() for c in tasks.completions],
+        "missed_log": tasks.missed_log,
     })
 
 
@@ -610,6 +611,7 @@ def delete_task(task_id):
 
 @app.route("/api/tasks/<int:task_id>/complete", methods=["POST"])
 def complete_task(task_id):
+    from datetime import date, datetime, timedelta
     app_config, subjects, wallet, reward_config, tasks = _load_all()
     idx = next((i for i, t in enumerate(tasks.templates) if t.id == task_id), -1)
     if idx == -1:
@@ -617,6 +619,8 @@ def complete_task(task_id):
     t = tasks.templates[idx]
     if not t.is_available():
         abort(400, "Task is not available (already completed this period)")
+
+    old_last = t.last_completed
     t.mark_completed()
     comp = TaskCompletion(
         task_id=t.id, task_name=t.name, reward=t.reward,
@@ -624,8 +628,38 @@ def complete_task(task_id):
     )
     tasks.completions.append(comp)
     wallet.balance += t.reward
+
+    # Detect missed scheduled days since last completion
+    if old_last and t.period != "once":
+        try:
+            old_date = datetime.strptime(old_last, "%Y-%m-%d").date()
+            new_date = date.today()
+            d = old_date + timedelta(days=1)
+            while d < new_date:
+                if _is_scheduled_day(t, d):
+                    tasks.missed_log.append({
+                        "task_name": t.name,
+                        "scheduled_date": d.isoformat(),
+                        "detected_at": datetime.now().strftime("%d.%m.%Y %H:%M"),
+                    })
+                d += timedelta(days=1)
+        except (ValueError, TypeError):
+            pass
+
     _save_all(app_config, subjects, wallet, reward_config, tasks)
     return jsonify(comp.to_dict()), 201
+
+
+def _is_scheduled_day(t, d):
+    """Check if date d is a scheduled day for task template t."""
+    from datetime import date
+    if t.period == "daily":
+        return True
+    if t.period == "weekly" and t.weekdays:
+        return d.weekday() in t.weekdays
+    if t.period == "monthly" and t.month_day:
+        return d.day == t.month_day
+    return False
 
 
 @app.route("/api/tasks/complete/<int:comp_id>", methods=["DELETE"])

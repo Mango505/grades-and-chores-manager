@@ -163,8 +163,8 @@ TaskTemplate(name, reward, period, active, last_completed, interval, weekdays, m
 TaskCompletion(task_id, task_name, reward, completed_at)
   # linked to task template; snapshot of task_name/reward at completion time
 
-TasksData(templates, completions)
-  # container for both lists; persisted as one JSON file
+TasksData(templates, completions, missed_log)
+  # container for task templates, completions, and auto-detected misses
 ```
 
 ---
