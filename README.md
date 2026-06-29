@@ -73,7 +73,8 @@ Everything is stored locally in JSON files on the server. The web interface is a
 ### Chores & Allowance
 - **Two-mode switcher** — toggle between "Notenrechner" (grades) and "Taschengeld" (chores) from the header; each mode has its own navigation and pages
 - **Task templates** — create recurring tasks with a name, reward amount, and period (once / daily / weekly / monthly)
-- **Availability logic** — tasks show as available based on their period and `last_completed` timestamp; daily tasks reset the next day, weekly on Monday, monthly on the 1st
+- **Custom intervals** — for daily/weekly/monthly tasks you can set an interval (e.g. every 3 days, every 2 weeks); weekly tasks support day-of-week selection (Mon–Sun), monthly tasks support day-of-month selection (1–31)
+- **Availability logic** — tasks show as available based on their period, interval, and last_completed timestamp; daily tasks reset after N days, weekly tasks follow on/off week cycles, monthly tasks activate on the selected day
 - **One-click completion** — completing a task credits the shared wallet immediately and logs the completion
 - **Undo completion** — reverses the wallet credit and makes the task available again, restoring `last_completed` and `active` state
 - **Completion history** — wallet page shows a "Taschengeld-Buchungen" section with all completed tasks and an undo button

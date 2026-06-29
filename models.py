@@ -1,4 +1,4 @@
-from datetime import datetime
+from datetime import date, datetime
 from enum import Enum
 DEFAULT_POINTS_MAP = {1: 10, 2: 6, 3: 2, 4: 0, 5: 0, 6: 0}  # 5€ / 3€ / 1€ / 0 / 0 / 0 at default 0.50€/pt
 DEFAULT_MONEY_PER_POINT = 0.50                              # default
@@ -221,18 +221,30 @@ class AppConfig:
 
 
 class TaskTemplate:
+
+    EPOCH = date(2000, 1, 3)  # Monday – anchor for week-number arithmetic
     def __init__(self, name: str, reward: float, period: str = "once",
                  active: bool = True, last_completed: str | None = None,
-                 task_id: int | None = None):
+                 task_id: int | None = None,
+                 interval: int = 1,
+                 weekdays: list[int] | None = None,
+                 month_day: int | None = None):
         self.id = task_id
         self.name = name
         self.reward = reward
         self.period = period      # "once" | "daily" | "weekly" | "monthly"
         self.active = active
         self.last_completed = last_completed  # ISO date string or None
+        self.interval = interval if interval else 1
+        self.weekdays = weekdays if weekdays is not None else None
+        self.month_day = month_day
+
+    @staticmethod
+    def _week_number(d: date) -> int:
+        return (d - TaskTemplate.EPOCH).days // 7
 
     def is_available(self) -> bool:
-        from datetime import date, datetime
+        from datetime import date, datetime, timedelta
         if not self.active:
             return False
         if self.period == "once":
@@ -244,12 +256,41 @@ class TaskTemplate:
         except (ValueError, TypeError):
             return True
         today = date.today()
+        interval = self.interval or 1
+
         if self.period == "daily":
-            return last < today
+            return last + timedelta(days=interval) <= today
+
         if self.period == "weekly":
-            return last.isocalendar()[1] != today.isocalendar()[1] or last.year != today.year
+            if self.weekdays:
+                if today.weekday() not in self.weekdays:
+                    return False
+                if last >= today:
+                    return False
+                if interval > 1:
+                    return (self._week_number(today) - self._week_number(last)) % interval == 0
+                return True
+            else:
+                if interval > 1:
+                    return (self._week_number(today) - self._week_number(last)) >= interval
+                return last.isocalendar()[1] != today.isocalendar()[1] or last.year != today.year
+
         if self.period == "monthly":
-            return last.month != today.month or last.year != today.year
+            if self.month_day:
+                if today.day != self.month_day:
+                    return False
+                if last >= today:
+                    return False
+                if interval > 1:
+                    months = (today.year - last.year) * 12 + (today.month - last.month)
+                    return months >= interval
+                return True
+            else:
+                if interval > 1:
+                    months = (today.year - last.year) * 12 + (today.month - last.month)
+                    return months >= interval
+                return last.month != today.month or last.year != today.year
+
         return True
 
     def mark_completed(self) -> None:
@@ -266,6 +307,9 @@ class TaskTemplate:
             "period": self.period,
             "active": self.active,
             "last_completed": self.last_completed,
+            "interval": self.interval,
+            "weekdays": self.weekdays,
+            "month_day": self.month_day,
         }
 
     @classmethod
@@ -277,6 +321,9 @@ class TaskTemplate:
             period=data.get("period", "once"),
             active=data.get("active", True),
             last_completed=data.get("last_completed"),
+            interval=data.get("interval", 1),
+            weekdays=data.get("weekdays"),
+            month_day=data.get("month_day"),
         )
 
 

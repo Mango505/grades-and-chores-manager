@@ -153,9 +153,12 @@ RewardConfig(enabled, points_map, money_per_point, reward_mode, unit_name, unit_
 
 AppConfig(data_path, wallet_path, reward_config_path, backup_path, verbose_loading)
 
-TaskTemplate(name, reward, period, active, last_completed)
+TaskTemplate(name, reward, period, active, last_completed, interval, weekdays, month_day)
   # period: "once" | "daily" | "weekly" | "monthly"
-  # is_available() checks period against last_completed
+  # interval: int (default 1) – repeat every N periods
+  # weekdays: list[int] | None (0=Mon..6=Sun) – for weekly tasks
+  # month_day: int | None (1-31) – for monthly tasks
+  # is_available() checks period/interval/weekdays/month_day against last_completed
 
 TaskCompletion(task_id, task_name, reward, completed_at)
   # linked to task template; snapshot of task_name/reward at completion time

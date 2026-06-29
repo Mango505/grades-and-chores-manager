@@ -533,8 +533,20 @@ def create_task():
     period = data.get("period", "once")
     if period not in ("once", "daily", "weekly", "monthly"):
         abort(400, "period must be once|daily|weekly|monthly")
+    interval = data.get("interval", 1)
+    if not isinstance(interval, int) or interval < 1:
+        abort(400, "interval must be a positive integer")
+    weekdays = data.get("weekdays")
+    if weekdays is not None:
+        if not isinstance(weekdays, list) or not all(isinstance(d, int) and 0 <= d <= 6 for d in weekdays):
+            abort(400, "weekdays must be a list of ints 0-6")
+    month_day = data.get("month_day")
+    if month_day is not None and (not isinstance(month_day, int) or month_day < 1 or month_day > 31):
+        abort(400, "month_day must be 1-31")
     app_config, subjects, wallet, reward_config, tasks = _load_all()
-    t = TaskTemplate(name=name, reward=reward, period=period, task_id=tasks.next_template_id())
+    t = TaskTemplate(name=name, reward=reward, period=period,
+                     interval=interval, weekdays=weekdays, month_day=month_day,
+                     task_id=tasks.next_template_id())
     tasks.templates.append(t)
     _save_all(app_config, subjects, wallet, reward_config, tasks)
     return jsonify(t.to_dict()), 201
@@ -563,6 +575,21 @@ def update_task(task_id):
         if data["period"] not in ("once", "daily", "weekly", "monthly"):
             abort(400, "period must be once|daily|weekly|monthly")
         t.period = data["period"]
+    if "interval" in data:
+        val = data["interval"]
+        if not isinstance(val, int) or val < 1:
+            abort(400, "interval must be a positive integer")
+        t.interval = val
+    if "weekdays" in data:
+        val = data["weekdays"]
+        if val is not None and (not isinstance(val, list) or not all(isinstance(d, int) and 0 <= d <= 6 for d in val)):
+            abort(400, "weekdays must be a list of ints 0-6 or null")
+        t.weekdays = val
+    if "month_day" in data:
+        val = data["month_day"]
+        if val is not None and (not isinstance(val, int) or val < 1 or val > 31):
+            abort(400, "month_day must be 1-31 or null")
+        t.month_day = val
     if "active" in data:
         t.active = bool(data["active"])
     _save_all(app_config, subjects, wallet, reward_config, tasks)

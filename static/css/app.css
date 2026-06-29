@@ -156,6 +156,9 @@ ul { list-style: none; }
 .tab-pill { padding: 10px 20px; border-radius: var(--shape-corner-full); border: 1px solid var(--md-sys-color-outline); background: transparent; cursor: pointer; font-size: 14px; font-weight: 500; font-family: inherit; white-space: nowrap; color: var(--md-sys-color-on-surface); transition: background .2s, color .2s, border-color .2s; }
 .tab-pill--active { background: var(--md-sys-color-primary); color: var(--md-sys-color-on-primary); border-color: var(--md-sys-color-primary); }
 .tab-pill:hover:not(.tab-pill--active) { background: color-mix(in srgb, var(--md-sys-color-on-surface) 8%, transparent); }
+.chip-day { padding: 6px 12px; border-radius: var(--shape-corner-full); border: 1px solid var(--md-sys-color-outline); background: transparent; cursor: pointer; font-size: 13px; font-weight: 500; font-family: inherit; color: var(--md-sys-color-on-surface); transition: background .2s, color .2s, border-color .2s; }
+.chip-day--active { background: var(--md-sys-color-secondary-container); color: var(--md-sys-color-on-secondary-container); border-color: var(--md-sys-color-secondary-container); }
+.chip-day:hover:not(.chip-day--active) { background: color-mix(in srgb, var(--md-sys-color-on-surface) 8%, transparent); }
 .page-placeholder { display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 16px; height: 50vh; color: var(--md-sys-color-on-surface-variant); }
 .page-placeholder__icon { font-size: 64px; font-variation-settings: 'FILL' 1; color: var(--md-sys-color-primary); }
 

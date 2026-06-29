@@ -1,10 +1,9 @@
-/**
- * tasks.js – Taschengeld-Aufgaben verwalten
- */
 import { apiFetch, showSnackbar, skeletonGrid, setPrimaryAction, clearPrimaryAction } from "../app.js";
 import { emptyState, errorBanner, openDialog, injectComponentStyles } from "../components.js";
 
 const PERIOD_LABELS = { once: "Einmalig", daily: "T\u00e4glich", weekly: "W\u00f6chentlich", monthly: "Monatlich" };
+const WEEKDAY_LABELS = ["Mo", "Di", "Mi", "Do", "Fr", "Sa", "So"];
+
 let _tasksData = null;
 
 export default async function render(container) {
@@ -50,9 +49,32 @@ function draw(container, templates, completions) {
   bindEvents(container, templates, completions);
 }
 
+function formatPeriod(t) {
+  const p = t.period;
+  const i = t.interval || 1;
+  if (p === "once") return "Einmalig";
+  if (p === "daily") return i === 1 ? "T\u00e4glich" : "Alle " + i + " Tage";
+  if (p === "weekly") {
+    const base = i === 1 ? "Jede Woche" : "Alle " + i + " Wochen";
+    if (t.weekdays && t.weekdays.length) {
+      const days = t.weekdays.map(d => WEEKDAY_LABELS[d]).join(", ");
+      return base + " (" + days + ")";
+    }
+    return i === 1 ? "W\u00f6chentlich" : "Alle " + i + " Wochen";
+  }
+  if (p === "monthly") {
+    if (t.month_day) {
+      const base = i === 1 ? "Jeden Monat" : "Alle " + i + " Monate";
+      return base + " am " + t.month_day + ".";
+    }
+    return i === 1 ? "Monatlich" : "Alle " + i + " Monate";
+  }
+  return PERIOD_LABELS[p] || p;
+}
+
 function taskCard(t) {
   const available = t.available;
-  const periodLabel = PERIOD_LABELS[t.period] || t.period;
+  const periodLabel = formatPeriod(t);
   const statusIcon = available ? "radio_button_unchecked" : "check_circle";
   const statusColor = available
     ? "var(--md-sys-color-on-surface-variant)"
@@ -159,6 +181,95 @@ function bindEvents(container, templates, completions) {
   });
 }
 
+// ---------------------------------------------------------------------------
+// Extra controls for interval, weekdays, month_day
+// ---------------------------------------------------------------------------
+
+function extraControlsHTML(period, interval, weekdays, monthDay) {
+  if (period === "once") return "";
+
+  const i = interval || 1;
+  const wd = weekdays || [];
+  const md = monthDay || 1;
+
+  let html = '<div style="margin-top:12px;padding-top:12px;border-top:1px solid var(--md-sys-color-outline-variant)">';
+
+  if (period === "daily") {
+    html +=
+      '<label style="font-size:13px;color:var(--md-sys-color-on-surface-variant);display:block;margin-bottom:6px">Alle</label>' +
+      '<div style="display:flex;align-items:center;gap:8px">' +
+        '<input type="number" id="dlgInterval" value="' + i + '" min="1" style="width:64px;padding:8px;border:1px solid var(--md-sys-color-outline);border-radius:8px;font-size:14px;font-family:inherit;background:transparent;color:var(--md-sys-color-on-surface);text-align:center">' +
+        '<span style="font-size:14px;color:var(--md-sys-color-on-surface)">Tag(e)</span>' +
+      '</div>';
+  }
+
+  if (period === "weekly") {
+    html +=
+      '<label style="font-size:13px;color:var(--md-sys-color-on-surface-variant);display:block;margin-bottom:6px">Alle</label>' +
+      '<div style="display:flex;align-items:center;gap:8px;margin-bottom:10px">' +
+        '<input type="number" id="dlgInterval" value="' + i + '" min="1" style="width:64px;padding:8px;border:1px solid var(--md-sys-color-outline);border-radius:8px;font-size:14px;font-family:inherit;background:transparent;color:var(--md-sys-color-on-surface);text-align:center">' +
+        '<span style="font-size:14px;color:var(--md-sys-color-on-surface)">Woche(n)</span>' +
+      '</div>' +
+      '<label style="font-size:13px;color:var(--md-sys-color-on-surface-variant);display:block;margin-bottom:6px">Wochentage</label>' +
+      '<div style="display:flex;gap:4px;flex-wrap:wrap" id="dlgWeekdays">';
+    for (let d = 0; d < 7; d++) {
+      const active = wd.indexOf(d) !== -1;
+      html +=
+        '<button class="chip-day' + (active ? " chip-day--active" : "") + '" data-day="' + d + '">' + WEEKDAY_LABELS[d] + '</button>';
+    }
+    html += '</div>';
+  }
+
+  if (period === "monthly") {
+    html +=
+      '<label style="font-size:13px;color:var(--md-sys-color-on-surface-variant);display:block;margin-bottom:6px">Alle</label>' +
+      '<div style="display:flex;align-items:center;gap:8px;margin-bottom:10px">' +
+        '<input type="number" id="dlgInterval" value="' + i + '" min="1" style="width:64px;padding:8px;border:1px solid var(--md-sys-color-outline);border-radius:8px;font-size:14px;font-family:inherit;background:transparent;color:var(--md-sys-color-on-surface);text-align:center">' +
+        '<span style="font-size:14px;color:var(--md-sys-color-on-surface)">Monat(e)</span>' +
+      '</div>' +
+      '<label style="font-size:13px;color:var(--md-sys-color-on-surface-variant);display:block;margin-bottom:6px">Am Tag</label>' +
+      '<input type="number" id="dlgMonthDay" value="' + md + '" min="1" max="31" style="width:72px;padding:8px;border:1px solid var(--md-sys-color-outline);border-radius:8px;font-size:14px;font-family:inherit;background:transparent;color:var(--md-sys-color-on-surface);text-align:center">';
+  }
+
+  return html + '</div>';
+}
+
+function bindExtraControls(dlg, period) {
+  if (period === "weekly") {
+    const container = dlg.querySelector("#dlgWeekdays");
+    if (!container) return;
+    const chips = container.querySelectorAll(".chip-day");
+    chips.forEach(chip => {
+      chip.addEventListener("click", () => {
+        chip.classList.toggle("chip-day--active");
+      });
+    });
+  }
+}
+
+function collectExtraData(dlg, period) {
+  const data = {};
+  if (period === "once") return data;
+  const intervalInput = dlg.querySelector("#dlgInterval");
+  if (intervalInput) {
+    data.interval = parseInt(intervalInput.value) || 1;
+  }
+  if (period === "weekly") {
+    const chips = dlg.querySelectorAll("#dlgWeekdays .chip-day--active");
+    data.weekdays = Array.from(chips).map(c => parseInt(c.dataset.day));
+    if (!data.weekdays.length) data.weekdays = null;
+  }
+  if (period === "monthly") {
+    const md = dlg.querySelector("#dlgMonthDay");
+    data.month_day = md ? (parseInt(md.value) || 1) : null;
+  }
+  return data;
+}
+
+// ---------------------------------------------------------------------------
+// Dialogs
+// ---------------------------------------------------------------------------
+
 function openAddTaskDialog(container) {
   const dlg = openDialog("Aufgabe hinzuf\u00fcgen",
     '<md-outlined-text-field id="dlgName" label="Aufgabe" style="width:100%"></md-outlined-text-field>' +
@@ -171,16 +282,27 @@ function openAddTaskDialog(container) {
         '<button class="tab-pill" data-period="weekly">W\u00f6chentlich</button>' +
         '<button class="tab-pill" data-period="monthly">Monatlich</button>' +
       '</div>' +
-    '</div>',
+    '</div>' +
+    '<div id="dlgExtraControls"></div>',
     "Hinzuf\u00fcgen"
   );
 
   let selectedPeriod = "once";
+
+  function updateControls() {
+    const target = dlg.querySelector("#dlgExtraControls");
+    if (target) {
+      target.innerHTML = extraControlsHTML(selectedPeriod, 1, [], 1);
+      bindExtraControls(dlg, selectedPeriod);
+    }
+  }
+
   dlg.querySelectorAll("[data-period]").forEach(btn => {
     btn.addEventListener("click", () => {
       dlg.querySelectorAll("[data-period]").forEach(b => b.classList.remove("tab-pill--active"));
       btn.classList.add("tab-pill--active");
       selectedPeriod = btn.dataset.period;
+      updateControls();
     });
   });
 
@@ -190,10 +312,11 @@ function openAddTaskDialog(container) {
     const reward = parseFloat(dlg.querySelector("#dlgReward").value);
     if (!name) { showSnackbar("Bitte Namen eingeben.", "error"); return; }
     if (isNaN(reward) || reward <= 0) { showSnackbar("Ung\u00fcltiger Betrag.", "error"); return; }
+    const extra = collectExtraData(dlg, selectedPeriod);
     try {
       await apiFetch("/api/tasks", {
         method: "POST",
-        body: JSON.stringify({ name, reward, period: selectedPeriod }),
+        body: JSON.stringify({ name, reward, period: selectedPeriod, ...extra }),
       });
       showSnackbar("Aufgabe '" + name + "' erstellt.");
       await load(container);
@@ -215,18 +338,43 @@ function openEditTaskDialog(container, t) {
     '<div style="margin-top:8px">' +
       '<label style="font-size:13px;color:var(--md-sys-color-on-surface-variant);display:block;margin-bottom:6px">Wiederholung</label>' +
       '<div style="display:flex;gap:6px;flex-wrap:wrap" id="periodPicker">' + periodBtns + '</div>' +
-    '</div>',
+    '</div>' +
+    '<div id="dlgExtraControls">' + extraControlsHTML(t.period, t.interval, t.weekdays, t.month_day) + '</div>',
     "Speichern"
   );
 
   let selectedPeriod = t.period;
+
+  function updateControls() {
+    const target = dlg.querySelector("#dlgExtraControls");
+    if (target) {
+      const currentWeeks = collectExtraData(dlg, "weekly").weekdays || t.weekdays || [];
+      const currentMonthDay = (selectedPeriod === "monthly" && dlg.querySelector("#dlgMonthDay"))
+        ? parseInt(dlg.querySelector("#dlgMonthDay").value) || t.month_day || 1
+        : t.month_day || 1;
+      const currentInterval = dlg.querySelector("#dlgInterval")
+        ? parseInt(dlg.querySelector("#dlgInterval").value) || t.interval || 1
+        : t.interval || 1;
+      target.innerHTML = extraControlsHTML(
+        selectedPeriod,
+        selectedPeriod === t.period ? t.interval : currentInterval,
+        selectedPeriod === "weekly" ? (selectedPeriod === t.period ? t.weekdays : currentWeeks) : [],
+        selectedPeriod === "monthly" ? (selectedPeriod === t.period ? t.month_day : currentMonthDay) : null
+      );
+      bindExtraControls(dlg, selectedPeriod);
+    }
+  }
+
   dlg.querySelectorAll("[data-period]").forEach(btn => {
     btn.addEventListener("click", () => {
       dlg.querySelectorAll("[data-period]").forEach(b => b.classList.remove("tab-pill--active"));
       btn.classList.add("tab-pill--active");
       selectedPeriod = btn.dataset.period;
+      updateControls();
     });
   });
+
+  bindExtraControls(dlg, selectedPeriod);
 
   dlg.addEventListener("close", async () => {
     if (dlg.returnValue !== "confirm") return;
@@ -234,10 +382,11 @@ function openEditTaskDialog(container, t) {
     const reward = parseFloat(dlg.querySelector("#dlgReward").value);
     if (!name) { showSnackbar("Bitte Namen eingeben.", "error"); return; }
     if (isNaN(reward) || reward <= 0) { showSnackbar("Ung\u00fcltiger Betrag.", "error"); return; }
+    const extra = collectExtraData(dlg, selectedPeriod);
     try {
       await apiFetch("/api/tasks/" + t.id, {
         method: "PUT",
-        body: JSON.stringify({ name, reward, period: selectedPeriod }),
+        body: JSON.stringify({ name, reward, period: selectedPeriod, ...extra }),
       });
       showSnackbar("Aufgabe aktualisiert.");
       await load(container);
