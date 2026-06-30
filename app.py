@@ -629,12 +629,15 @@ def complete_task(task_id):
     tasks.completions.append(comp)
     wallet.balance += t.reward
 
-    # Detect missed scheduled days since last completion
-    if old_last and t.period != "once":
+    # Detect missed scheduled days since last completion (or creation)
+    old_ref = old_last or t.created_at
+    if old_ref and t.period != "once":
         try:
-            old_date = datetime.strptime(old_last, "%Y-%m-%d").date()
+            old_date = datetime.strptime(old_ref, "%Y-%m-%d").date()
             new_date = date.today()
-            d = old_date + timedelta(days=1)
+            # Include creation day when no completion yet (it could have been missed)
+            start = old_date if old_ref == t.created_at else old_date + timedelta(days=1)
+            d = start
             while d < new_date:
                 if _is_scheduled_day(t, d):
                     tasks.missed_log.append({

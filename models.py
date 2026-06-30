@@ -228,7 +228,8 @@ class TaskTemplate:
                  task_id: int | None = None,
                  interval: int = 1,
                  weekdays: list[int] | None = None,
-                 month_day: int | None = None):
+                 month_day: int | None = None,
+                 created_at: str | None = None):
         self.id = task_id
         self.name = name
         self.reward = reward
@@ -238,6 +239,7 @@ class TaskTemplate:
         self.interval = interval if interval else 1
         self.weekdays = weekdays if weekdays is not None else None
         self.month_day = month_day
+        self.created_at = created_at or date.today().isoformat()
 
     @staticmethod
     def _week_number(d: date) -> int:
@@ -317,6 +319,7 @@ class TaskTemplate:
             "interval": self.interval,
             "weekdays": self.weekdays,
             "month_day": self.month_day,
+            "created_at": self.created_at,
         }
 
     @classmethod
@@ -331,6 +334,7 @@ class TaskTemplate:
             interval=data.get("interval", 1),
             weekdays=data.get("weekdays"),
             month_day=data.get("month_day"),
+            created_at=data.get("created_at"),
         )
 
 
