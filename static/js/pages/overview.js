@@ -12,6 +12,8 @@ let reorderMode     = false;
 let detailSubject   = null;
 let filterLabels    = [];
 let filterMode      = "or";
+let filterGradeValues = [];
+let detailGradeFilter = [];
 let _cachedSubjects      = [];
 let _cachedRewardConfig  = null; // cached so grid-view FAB can use it
 
@@ -59,6 +61,7 @@ async function renderGrid(container) {
           '<input id="labelInput" class="chip-text-input" placeholder="'+(filterLabels.length?"Label hinzuf\u00fcgen\u2026":"Nach Label filtern\u2026")+'"/>' +
         '</div>' +
         '<div id="filterModeRow" class="filter-mode-row" style="'+(filterLabels.length?"":"display:none")+'">' + modeRowHtml + '</div>' +
+        '<div id="gradeFilterRow" class="grade-filter-row">' + _renderGradeChipsHtml() + '</div>' +
       '</div>' +
       '<div class="ov-toolbar-right">' +
         '<button class="btn-tonal" id="btnNewSubject"><span class="material-symbols-rounded">add</span>Fach</button>' +
@@ -74,7 +77,7 @@ async function renderGrid(container) {
     '<div id="subjectGrid">'+renderGridContent(subjects)+'</div>';
 
   bindGridEvents(container, subjects, rewardConfig);
-  if (filterLabels.length) _applyFilter(container, subjects);
+  if (filterLabels.length || filterGradeValues.length) _applyFilter(container, subjects);
 }
 
 function _renderChipsHtml() {
@@ -85,8 +88,14 @@ function _renderModeRowHtml() {
   const clearBtn='<button class="filter-clear-btn" id="filterClear">\u00d7 Zur\u00fccksetzen</button>';
   if (filterLabels.length===1) return clearBtn;
   return clearBtn+
-    '<label><input type="radio" name="filterMode" value="or"  '+(filterMode==="or"?"checked":"")+'"/> Eines (OR)</label>'+
-    '<label><input type="radio" name="filterMode" value="and" '+(filterMode==="and"?"checked":"")+'"/> Alle (AND)</label>';
+    '<label><input type="radio" name="filterMode" value="or"  '+(filterMode==="or"?'checked="checked"':'')+'/> Eines (OR)</label>'+
+    '<label><input type="radio" name="filterMode" value="and" '+(filterMode==="and"?'checked="checked"':'')+'/> Alle (AND)</label>';
+}
+
+function _renderGradeChipsHtml() {
+  return [1,2,3,4,5,6].map(function(v) {
+    return '<button class="grade-filter-chip' + (filterGradeValues.includes(v) ? " active" : "") + '" data-value="' + v + '">' + v + '</button>';
+  }).join("");
 }
 
 function renderGridContent(subjects) {
@@ -163,6 +172,12 @@ function _removeOverflowBtn() { document.getElementById("ov-overflow-btn")?.remo
 // ---------------------------------------------------------------------------
 function _addChip(label,container,subjects){ label=label.trim(); if (!label||filterLabels.includes(label)) return; filterLabels.push(label); _rebuildFilter(container,subjects); }
 function _removeChip(index,container,subjects){ filterLabels.splice(index,1); _rebuildFilter(container,subjects); }
+function _rebuildGradeFilter(container) {
+  const row=container.querySelector("#gradeFilterRow");
+  if (!row) return;
+  row.querySelectorAll(".grade-filter-chip").forEach(function(btn){ btn.classList.toggle("active", filterGradeValues.includes(parseInt(btn.dataset.value))); });
+}
+
 function _rebuildFilter(container,subjects){
   const chipInput=container.querySelector("#chipInput"), input=container.querySelector("#labelInput"), modeRow=container.querySelector("#filterModeRow");
   if (!chipInput||!input) return;
@@ -173,8 +188,9 @@ function _rebuildFilter(container,subjects){
     if (!filterLabels.length) { modeRow.style.display="none"; modeRow.innerHTML=""; }
     else {
       modeRow.className="filter-mode-row"; modeRow.style.display="flex"; modeRow.innerHTML=_renderModeRowHtml();
-      modeRow.querySelector("#filterClear")?.addEventListener("click",()=>{ filterLabels=[]; _rebuildFilter(container,subjects); });
-      modeRow.querySelectorAll("input[type=radio]").forEach(r=>r.addEventListener("change",()=>{ filterMode=r.value; _applyFilter(container,subjects); }));
+      var defaultRadio=modeRow.querySelector('input[type="radio"][value="'+filterMode+'"]'); if (defaultRadio) defaultRadio.checked=true;
+      modeRow.querySelector("#filterClear")?.addEventListener("click",function(){ filterLabels=[]; filterGradeValues=[]; _rebuildGradeFilter(container); _rebuildFilter(container,subjects); });
+      modeRow.querySelectorAll("input[type=radio]").forEach(function(r){ r.addEventListener("change",function(){ filterMode=r.value; _applyFilter(container,subjects); }); });
     }
   }
   _applyFilter(container,subjects);
@@ -182,13 +198,24 @@ function _rebuildFilter(container,subjects){
 function _applyFilter(container,subjects){
   const grid=container.querySelector("#subjectGrid"), infoEl=container.querySelector("#filterInfo");
   if (!grid) return;
-  if (!filterLabels.length){ if (infoEl) infoEl.style.display="none"; grid.innerHTML=renderGridContent(subjects); return; }
+  const hasLabel=filterLabels.length>0, hasGrade=filterGradeValues.length>0;
+  if (!hasLabel&&!hasGrade){ if (infoEl) infoEl.style.display="none"; grid.innerHTML=renderGridContent(subjects); return; }
   const matches=[];
-  subjects.forEach(s=>s.grades.forEach(g=>{ const hit=filterMode==="and"?filterLabels.every(l=>g.labels.some(gl=>gl.toLowerCase().includes(l.toLowerCase()))):filterLabels.some(l=>g.labels.some(gl=>gl.toLowerCase().includes(l.toLowerCase()))); if (hit) matches.push({subject:s.name,grade:g}); }));
-  if (infoEl){ infoEl.style.display=""; infoEl.textContent=matches.length+" Eintr\u00e4ge \u2014 "+filterLabels.join(filterMode==="and"?" + ":" | "); }
-  if (!matches.length){ grid.innerHTML=emptyState("search_off","Keine Noten mit diesen Labels."); return; }
-  const rows=matches.map(({subject,grade})=>'<tr><td style="padding:8px 10px;border-bottom:1px solid var(--md-sys-color-outline-variant);font-size:14px">'+subject+'</td><td style="padding:8px 10px;border-bottom:1px solid var(--md-sys-color-outline-variant)">'+gradeBadge(grade.value)+'</td><td style="padding:8px 10px;border-bottom:1px solid var(--md-sys-color-outline-variant);font-size:13px;color:var(--md-sys-color-on-surface-variant)">'+grade.weight+'\u00d7</td><td style="padding:8px 10px;border-bottom:1px solid var(--md-sys-color-outline-variant);font-size:13px;color:var(--md-sys-color-on-surface-variant)">'+grade.labels.join(", ")+'</td></tr>').join("");
-  grid.innerHTML='<div class="card" style="padding:0;overflow:hidden"><table style="width:100%;border-collapse:collapse"><thead><tr>'+['Fach','Note','Gew.','Labels'].map(h=>'<th style="text-align:left;padding:8px 10px;font-size:12px;color:var(--md-sys-color-on-surface-variant);border-bottom:1px solid var(--md-sys-color-outline-variant)">'+h+'</th>').join("")+'</tr></thead><tbody>'+rows+'</tbody></table></div>';
+  subjects.forEach(function(s){ s.grades.forEach(function(g){
+    const hitLabel=!hasLabel||(filterMode==="and"?filterLabels.every(function(l){ return g.labels.some(function(gl){ return gl.toLowerCase().includes(l.toLowerCase()); }); }):filterLabels.some(function(l){ return g.labels.some(function(gl){ return gl.toLowerCase().includes(l.toLowerCase()); }); }));
+    const hitGrade=!hasGrade||filterGradeValues.includes(Math.floor(g.value));
+    if (hitLabel&&hitGrade) matches.push({subject:s.name,grade:g});
+  }); });
+  if (infoEl){
+    infoEl.style.display="";
+    const parts=[];
+    if (hasLabel) parts.push(filterLabels.join(filterMode==="and"?" + ":" | "));
+    if (hasGrade) parts.push("Noten: "+filterGradeValues.slice().sort(function(a,b){ return a-b; }).join(", "));
+    infoEl.textContent=matches.length+" Eintr\u00e4ge \u2014 "+parts.join(" \u00b7 ");
+  }
+  if (!matches.length){ grid.innerHTML=emptyState("search_off","Keine Noten mit diesen Kriterien."); return; }
+  const rows=matches.map(function(m){ return '<tr><td style="padding:8px 10px;border-bottom:1px solid var(--md-sys-color-outline-variant);font-size:14px">'+m.subject+'</td><td style="padding:8px 10px;border-bottom:1px solid var(--md-sys-color-outline-variant)">'+gradeBadge(m.grade.value)+'</td><td style="padding:8px 10px;border-bottom:1px solid var(--md-sys-color-outline-variant);font-size:13px;color:var(--md-sys-color-on-surface-variant)">'+m.grade.weight+'\u00d7</td><td style="padding:8px 10px;border-bottom:1px solid var(--md-sys-color-outline-variant);font-size:13px;color:var(--md-sys-color-on-surface-variant)">'+m.grade.labels.join(", ")+'</td></tr>'; }).join("");
+  grid.innerHTML='<div class="card" style="padding:0;overflow:hidden;grid-column:1/-1"><table style="width:100%;border-collapse:collapse"><thead><tr>'+['Fach','Note','Gew.','Labels'].map(function(h){ return '<th style="text-align:left;padding:8px 10px;font-size:12px;color:var(--md-sys-color-on-surface-variant);border-bottom:1px solid var(--md-sys-color-outline-variant)">'+h+'</th>'; }).join("")+'</tr></thead><tbody>'+rows+'</tbody></table></div>';
 }
 
 // ---------------------------------------------------------------------------
@@ -205,8 +232,18 @@ function bindGridEvents(container, subjects, rewardConfig) {
   chipInput?.addEventListener("click",e=>{ const btn=e.target.closest(".chip-x"); if (btn) _removeChip(parseInt(btn.dataset.i),container,subjects); else labelInput?.focus(); });
 
   const modeRow=container.querySelector("#filterModeRow");
-  modeRow?.querySelector("#filterClear")?.addEventListener("click",()=>{ filterLabels=[]; _rebuildFilter(container,subjects); });
-  modeRow?.querySelectorAll("input[type=radio]").forEach(r=>r.addEventListener("change",()=>{ filterMode=r.value; _applyFilter(container,subjects); }));
+  modeRow?.querySelector("#filterClear")?.addEventListener("click",function(){ filterLabels=[]; filterGradeValues=[]; _rebuildGradeFilter(container); _rebuildFilter(container,subjects); });
+  modeRow?.querySelectorAll("input[type=radio]").forEach(function(r){ r.addEventListener("change",function(){ filterMode=r.value; _applyFilter(container,subjects); }); });
+
+  const gradeRow=container.querySelector("#gradeFilterRow");
+  gradeRow?.addEventListener("click",function(e){
+    var btn=e.target.closest(".grade-filter-chip");
+    if (!btn) return;
+    var v=parseInt(btn.dataset.value), idx=filterGradeValues.indexOf(v);
+    if (idx===-1) filterGradeValues.push(v); else filterGradeValues.splice(idx,1);
+    _rebuildGradeFilter(container);
+    _applyFilter(container,subjects);
+  });
 
   container.querySelector("#btnReorder")?.addEventListener("click",()=>{
     reorderMode=!reorderMode; grid.innerHTML=renderGridContent(subjects);
@@ -235,6 +272,7 @@ async function openAddNoteDialog(container, subjects, rewardConfig) {
 // DETAIL VIEW
 // ---------------------------------------------------------------------------
 async function renderDetail(container) {
+  detailGradeFilter=[];
   container.innerHTML=
     '<div class="back-bar"><button class="icon-btn" id="btnBack"><span class="material-symbols-rounded">arrow_back</span></button><span class="back-bar__title">'+detailSubject+'</span></div>'+
     skeletonGrid(2,["title","medium","short"]);
@@ -251,24 +289,39 @@ async function renderDetail(container) {
   drawDetail(container,subject,subjects,rewardConfig);
 }
 
+function _renderDetailGradeChipsHtml() {
+  return [1,2,3,4,5,6].map(function(v) {
+    return '<button class="grade-filter-chip' + (detailGradeFilter.includes(v) ? " active" : "") + '" data-value="' + v + '">' + v + '</button>';
+  }).join("");
+}
+
 function drawDetail(container,subject,subjects,rewardConfig) {
   const g=subject.grades, w=g.reduce((a,x)=>a+x.weight,0), avg=w?g.reduce((a,x)=>a+x.value*x.weight,0)/w:null;
-  const rows=g.length?g.map((gr,i)=>
-    '<tr><td style="padding:10px;border-bottom:1px solid var(--md-sys-color-outline-variant)">'+gradeBadge(gr.value)+'</td>' +
-    '<td style="padding:10px;border-bottom:1px solid var(--md-sys-color-outline-variant);font-size:14px">'+(gr.weight!==1?"<strong>"+gr.weight+"\u00d7</strong>":"1\u00d7")+'</td>' +
-    '<td style="padding:10px;border-bottom:1px solid var(--md-sys-color-outline-variant);font-size:13px;color:var(--md-sys-color-on-surface-variant);max-width:200px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap">'+(gr.labels.join(", ")||"\u2014")+'</td>' +
-    '<td style="padding:10px;border-bottom:1px solid var(--md-sys-color-outline-variant);white-space:nowrap;text-align:right">' +
-      '<button class="icon-btn-sm btn-edit" data-index="'+i+'"><span class="material-symbols-rounded">edit</span></button>' +
-      '<button class="icon-btn-sm btn-del"  data-index="'+i+'" style="color:var(--md-sys-color-error)"><span class="material-symbols-rounded">delete</span></button></td></tr>'
-  ).join(""):'<tr><td colspan="4" style="padding:32px;text-align:center;color:var(--md-sys-color-on-surface-variant)">Keine Noten.</td></tr>';
+  const items=detailGradeFilter.length?g.map(function(gr,i){ return {gr:gr,i:i}; }).filter(function(item){ return detailGradeFilter.includes(Math.floor(item.gr.value)); }):g.map(function(gr,i){ return {gr:gr,i:i}; });
+  const hasFilter=detailGradeFilter.length>0;
+  let rows;
+  if (items.length) {
+    rows=items.map(function(item){
+      var gr=item.gr, i=item.i;
+      return '<tr><td style="padding:10px;border-bottom:1px solid var(--md-sys-color-outline-variant)">'+gradeBadge(gr.value)+'</td>' +
+        '<td style="padding:10px;border-bottom:1px solid var(--md-sys-color-outline-variant);font-size:14px">'+(gr.weight!==1?"<strong>"+gr.weight+"\u00d7</strong>":"1\u00d7")+'</td>' +
+        '<td style="padding:10px;border-bottom:1px solid var(--md-sys-color-outline-variant);font-size:13px;color:var(--md-sys-color-on-surface-variant);max-width:200px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap">'+(gr.labels.join(", ")||"\u2014")+'</td>' +
+        '<td style="padding:10px;border-bottom:1px solid var(--md-sys-color-outline-variant);white-space:nowrap;text-align:right">' +
+          '<button class="icon-btn-sm btn-edit" data-index="'+i+'"><span class="material-symbols-rounded">edit</span></button>' +
+          '<button class="icon-btn-sm btn-del"  data-index="'+i+'" style="color:var(--md-sys-color-error)"><span class="material-symbols-rounded">delete</span></button></td></tr>';
+    }).join("");
+  } else {
+    rows='<tr><td colspan="4" style="padding:32px;text-align:center;color:var(--md-sys-color-on-surface-variant)">'+(hasFilter?"Keine Noten mit diesem Filter.":"Keine Noten.")+'</td></tr>';
+  }
 
   container.innerHTML=
     '<div class="back-bar"><button class="icon-btn" id="btnBack"><span class="material-symbols-rounded">arrow_back</span></button><span class="back-bar__title">'+subject.name+'</span>' +
     '<div class="back-bar__actions"><button class="icon-btn" id="btnRename"><span class="material-symbols-rounded">edit</span></button>' +
     '<button class="icon-btn" id="btnDelSubject" style="color:var(--md-sys-color-error)"><span class="material-symbols-rounded">delete</span></button></div></div>' +
-    (avg!==null?'<div class="card stat-banner-grid" style="margin-bottom:16px">'+statChip("Durchschnitt",avg.toFixed(2))+statChip("Eintr\u00e4ge",g.length,"--md-sys-color-secondary")+statChip("Beste Note",Math.min(...g.map(x=>x.value)),"--md-sys-color-tertiary")+'</div>':"") +
+    (avg!==null?'<div class="card stat-banner-grid" style="margin-bottom:16px">'+statChip("Durchschnitt",avg.toFixed(2))+statChip("Eintr\u00e4ge",g.length,"--md-sys-color-secondary")+statChip("Beste Note",Math.min(...g.map(function(x){ return x.value; })),"--md-sys-color-tertiary")+'</div>':"") +
+    '<div id="detailGradeFilterRow" class="grade-filter-row" style="margin-bottom:10px">'+_renderDetailGradeChipsHtml()+'</div>' +
     '<div class="card" style="padding:0;overflow:hidden"><table class="grade-table" style="width:100%;border-collapse:collapse">' +
-    '<thead><tr>'+['Note','Gew.','Labels',''].map(h=>'<th style="text-align:left;padding:8px 10px;font-size:12px;color:var(--md-sys-color-on-surface-variant);border-bottom:1px solid var(--md-sys-color-outline-variant)">'+h+'</th>').join("")+'</tr></thead>' +
+    '<thead><tr>'+['Note','Gew.','Labels',''].map(function(h){ return '<th style="text-align:left;padding:8px 10px;font-size:12px;color:var(--md-sys-color-on-surface-variant);border-bottom:1px solid var(--md-sys-color-outline-variant)">'+h+'</th>'; }).join("")+'</tr></thead>' +
     '<tbody>'+rows+'</tbody></table></div>';
 
   container.querySelector("#btnBack").addEventListener("click",()=>{ detailSubject=null; clearPrimaryAction(); renderGrid(container); });
@@ -291,6 +344,13 @@ function drawDetail(container,subject,subjects,rewardConfig) {
       try { await apiFetch("/api/subjects/"+encodeURIComponent(subject.name)+"/grades/"+idx+"?adjust_wallet=1",{method:"DELETE"}); showSnackbar("Note gel\u00f6scht."); await refreshDetail(container,subject.name,rewardConfig); }
       catch(e){showSnackbar(e.message,"error");} });
   }));
+  container.querySelector("#detailGradeFilterRow")?.addEventListener("click",function(e){
+    var btn=e.target.closest(".grade-filter-chip");
+    if (!btn) return;
+    var v=parseInt(btn.dataset.value), idx=detailGradeFilter.indexOf(v);
+    if (idx===-1) detailGradeFilter.push(v); else detailGradeFilter.splice(idx,1);
+    drawDetail(container,subject,subjects,rewardConfig);
+  });
 }
 
 async function refreshDetail(container,name,rewardConfig) {
